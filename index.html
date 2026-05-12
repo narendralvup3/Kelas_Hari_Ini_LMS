@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LearnHub LMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Lora:wght@600&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0f1f3d;--navy2:#162647;--navy3:#1e3460;--accent:#f59e0b;--accent2:#fbbf24;--accent-dim:rgba(245,158,11,0.15);--green:#10b981;--red:#ef4444;--blue:#3b82f6;--white:#ffffff;--gray50:#f8fafc;--gray100:#f1f5f9;--gray200:#e2e8f0;--gray300:#cbd5e1;--gray500:#64748b;--gray700:#334155;--gray900:#0f172a;--sidebar-w:260px;--radius:10px;--shadow:0 4px 20px rgba(0,0,0,0.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--gray100);color:var(--gray900);min-height:100vh;display:flex}
+.sidebar{width:var(--sidebar-w);background:var(--navy);min-height:100vh;display:flex;flex-direction:column;position:fixed;top:0;left:0;z-index:100;transition:.3s}
+.sidebar-logo{padding:24px 20px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sidebar-logo h1{font-family:'Lora',serif;color:var(--accent);font-size:22px;letter-spacing:-.5px}
+.sidebar-logo span{color:rgba(255,255,255,.5);font-size:11px;font-weight:500;letter-spacing:1px;text-transform:uppercase;display:block;margin-top:2px}
+.sidebar-nav{flex:1;padding:16px 12px;overflow-y:auto}
+.nav-section{margin-bottom:24px}
+.nav-label{color:rgba(255,255,255,.3);font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:0 8px;margin-bottom:8px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;color:rgba(255,255,255,.6);font-size:13.5px;font-weight:500;transition:.2s;margin-bottom:2px}
+.nav-item:hover{background:rgba(255,255,255,.07);color:var(--white)}
+.nav-item.active{background:var(--accent);color:var(--navy);font-weight:700}
+.nav-item .nav-icon{font-size:18px;width:20px;text-align:center}
+.sidebar-user{padding:16px;border-top:1px solid rgba(255,255,255,.08)}
+.user-card{display:flex;align-items:center;gap:10px}
+.user-avatar{width:38px;height:38px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--navy);font-size:14px;flex-shrink:0}
+.user-name{color:var(--white);font-size:13px;font-weight:600}
+.user-role{color:rgba(255,255,255,.4);font-size:11px}
+.main{margin-left:var(--sidebar-w);flex:1;min-height:100vh;display:flex;flex-direction:column}
+.topbar{background:var(--white);border-bottom:1px solid var(--gray200);padding:0 28px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-title{font-size:18px;font-weight:700}
+.topbar-actions{display:flex;align-items:center;gap:12px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13.5px;font-weight:600;cursor:pointer;border:none;transition:.2s;font-family:inherit}
+.btn-primary{background:var(--accent);color:var(--navy)}.btn-primary:hover{background:var(--accent2)}
+.btn-outline{background:transparent;color:var(--gray700);border:1.5px solid var(--gray200)}.btn-outline:hover{background:var(--gray50)}
+.btn-ghost{background:transparent;color:var(--gray500)}.btn-ghost:hover{background:var(--gray100)}
+.btn-danger{background:var(--red);color:#fff}.btn-success{background:var(--green);color:#fff}
+.btn-sm{padding:6px 12px;font-size:12.5px}
+.btn-blue{background:var(--blue);color:#fff}
+.content{padding:28px;flex:1}
+.page{display:none}.page.active{display:block}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+.stat-card{background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.stat-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:12px}
+.stat-value{font-size:28px;font-weight:800}.stat-label{font-size:12.5px;color:var(--gray500);margin-top:2px;font-weight:500}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.section-title{font-size:16px;font-weight:700}.section-link{font-size:13px;color:var(--accent);font-weight:600;cursor:pointer}
+.courses-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.course-card{background:var(--white);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);cursor:pointer;transition:.2s}
+.course-card:hover{transform:translateY(-3px);box-shadow:0 8px 30px rgba(0,0,0,.12)}
+.course-thumb{height:140px;display:flex;align-items:center;justify-content:center;font-size:48px;position:relative}
+.course-badge{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px}
+.course-body{padding:16px}
+.course-tag{display:inline-block;background:var(--accent-dim);color:var(--accent);font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:20px;margin-bottom:8px;text-transform:uppercase}
+.course-title{font-size:14.5px;font-weight:700;margin-bottom:6px;line-height:1.4}
+.course-meta{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--gray500);margin-bottom:12px}
+.progress-bar{height:5px;background:var(--gray100);border-radius:10px;overflow:hidden;margin-top:4px}
+.progress-fill{height:100%;background:var(--accent);border-radius:10px;transition:.4s}
+.progress-label{display:flex;justify-content:space-between;font-size:11px;color:var(--gray500);font-weight:500}
+.search-bar{display:flex;gap:12px;margin-bottom:20px}
+.search-input{flex:1;padding:10px 16px;border:1.5px solid var(--gray200);border-radius:8px;font-size:13.5px;font-family:inherit;outline:none;transition:.2s}
+.search-input:focus{border-color:var(--accent)}
+.filter-select{padding:10px 14px;border:1.5px solid var(--gray200);border-radius:8px;font-size:13.5px;font-family:inherit;outline:none;color:var(--gray700);cursor:pointer}
+.viewer-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
+.lesson-player{background:var(--white);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.video-container{width:100%;aspect-ratio:16/9;background:#000}
+.video-container iframe{width:100%;height:100%;border:none}
+.video-placeholder{width:100%;aspect-ratio:16/9;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(255,255,255,.6);gap:12px}
+.text-lesson{padding:24px;line-height:1.7;color:var(--gray700);font-size:15px}
+.text-lesson h3{font-size:18px;font-weight:700;color:var(--gray900);margin-bottom:16px}
+.lesson-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-top:1px solid var(--gray100)}
+.lesson-title-bar{padding:16px 24px;border-bottom:1px solid var(--gray100)}
+.lesson-title-bar h2{font-size:16px;font-weight:700}
+.sidebar-modules{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.modules-header{padding:16px 20px;border-bottom:1px solid var(--gray100);font-weight:700;font-size:14px}
+.module-header{padding:12px 20px;display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:600;color:var(--gray700);background:var(--gray50)}
+.lesson-item{padding:10px 20px 10px 36px;display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--gray600);border-top:1px solid var(--gray50);transition:.15s}
+.lesson-item:hover{background:var(--accent-dim)}
+.lesson-item.active{background:var(--accent-dim);color:var(--accent);font-weight:600}
+.lesson-check{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--gray300);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px}
+.lesson-check.done{background:var(--green);border-color:var(--green);color:#fff}
+.lesson-duration{margin-left:auto;font-size:11px;color:var(--gray400)}
+/* QUIZ STUDENT */
+.quiz-wrap{max-width:720px;margin:0 auto}
+.quiz-topbar{background:var(--white);border-radius:var(--radius);padding:18px 24px;margin-bottom:16px;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:space-between}
+.quiz-topbar h2{font-size:16px;font-weight:700}
+.quiz-pbar{height:6px;background:var(--gray100);border-radius:10px;overflow:hidden;flex:1;margin:0 16px}
+.quiz-pfill{height:100%;background:var(--accent);border-radius:10px;transition:.4s}
+.q-card{background:var(--white);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:16px}
+.q-type-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;margin-bottom:10px}
+.badge-pg{background:rgba(59,130,246,.1);color:var(--blue)}
+.badge-esai{background:rgba(139,92,246,.1);color:#7c3aed}
+.q-num{font-size:12px;font-weight:700;color:var(--gray500);margin-bottom:6px}
+.q-text{font-size:15px;font-weight:600;line-height:1.6;margin-bottom:18px}
+.opt-item{display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:8px;border:1.5px solid var(--gray200);margin-bottom:8px;cursor:pointer;transition:.2s;font-size:14px;font-weight:500}
+.opt-item:hover{border-color:var(--accent);background:var(--accent-dim)}
+.opt-item.selected{border-color:var(--accent);background:var(--accent-dim)}
+.opt-item.correct{border-color:var(--green);background:rgba(16,185,129,.1)}
+.opt-item.wrong{border-color:var(--red);background:rgba(239,68,68,.1)}
+.opt-letter{width:28px;height:28px;border-radius:50%;background:var(--gray100);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0}
+.selected .opt-letter{background:var(--accent);color:var(--navy)}
+.correct .opt-letter{background:var(--green);color:#fff}
+.wrong .opt-letter{background:var(--red);color:#fff}
+.essay-area{width:100%;min-height:130px;padding:12px 16px;border:1.5px solid var(--gray200);border-radius:8px;font-family:inherit;font-size:14px;line-height:1.6;outline:none;resize:vertical;transition:.2s}
+.essay-area:focus{border-color:var(--accent)}
+.rubric-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px}
+.rubric-table th{background:var(--gray50);padding:8px 12px;text-align:left;font-size:11.5px;font-weight:700;color:var(--gray500);text-transform:uppercase;letter-spacing:.4px}
+.rubric-table td{padding:10px 12px;border-top:1px solid var(--gray100);vertical-align:top}
+.rubric-score-input{width:60px;padding:4px 8px;border:1.5px solid var(--gray200);border-radius:6px;font-family:inherit;font-size:13px;text-align:center;outline:none}
+.rubric-score-input:focus{border-color:var(--accent)}
+.result-box{background:var(--white);border-radius:var(--radius);padding:40px;text-align:center;box-shadow:var(--shadow)}
+.result-score{font-size:72px;font-weight:800;line-height:1}
+.result-sub{font-size:14px;color:var(--gray500);margin:8px 0 20px}
+.result-pill{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;border-radius:30px;font-weight:700;font-size:14px;margin-bottom:28px}
+.pill-pass{background:rgba(16,185,129,.12);color:var(--green)}
+.pill-fail{background:rgba(239,68,68,.1);color:var(--red)}
+.pill-pending{background:rgba(245,158,11,.12);color:#b45309}
+/* ADMIN */
+.admin-tabs{display:flex;gap:4px;background:var(--gray100);padding:4px;border-radius:10px;margin-bottom:24px;width:fit-content}
+.admin-tab{padding:8px 20px;border-radius:8px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--gray500);transition:.2s}
+.admin-tab.active{background:var(--white);color:var(--gray900);box-shadow:var(--shadow)}
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:13px;font-weight:600;color:var(--gray700);margin-bottom:6px}
+.form-input,.form-textarea,.form-select{width:100%;padding:10px 14px;border:1.5px solid var(--gray200);border-radius:8px;font-family:inherit;font-size:13.5px;outline:none;transition:.2s;color:var(--gray900);background:var(--white)}
+.form-input:focus,.form-textarea:focus,.form-select:focus{border-color:var(--accent)}
+.form-textarea{min-height:90px;resize:vertical}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.table{width:100%;border-collapse:collapse;font-size:13.5px}
+.table th{background:var(--gray50);padding:10px 14px;text-align:left;font-size:12px;font-weight:700;color:var(--gray500);text-transform:uppercase;letter-spacing:.5px}
+.table td{padding:12px 14px;border-top:1px solid var(--gray100);vertical-align:middle}
+.table tr:hover td{background:var(--gray50)}
+.status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.badge-active{background:rgba(16,185,129,.12);color:var(--green)}
+.badge-draft{background:var(--gray100);color:var(--gray500)}
+/* QUIZ BUILDER */
+.builder-layout{display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start}
+.builder-form{background:var(--white);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow)}
+.builder-list{background:var(--white);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.type-toggle{display:flex;gap:0;margin-bottom:20px;border:1.5px solid var(--gray200);border-radius:8px;overflow:hidden}
+.type-btn{flex:1;padding:10px;text-align:center;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--gray500);background:transparent;border:none;transition:.2s;font-family:inherit}
+.type-btn.active{background:var(--accent);color:var(--navy)}
+.rubric-row{display:grid;grid-template-columns:1fr 2fr 80px 28px;gap:8px;align-items:start;margin-bottom:8px}
+.rubric-del{width:28px;height:28px;border-radius:6px;background:rgba(239,68,68,.1);color:var(--red);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;margin-top:6px;flex-shrink:0}
+.q-preview{padding:14px;border-radius:8px;border:1px solid var(--gray200);margin-bottom:10px;font-size:13.5px}
+.q-preview-num{font-size:11px;font-weight:700;color:var(--gray400);margin-bottom:4px}
+.q-preview-text{font-weight:600;margin-bottom:6px;line-height:1.4}
+.q-preview-meta{font-size:12px;color:var(--gray500)}
+/* CERT */
+.cert-preview{border:8px solid var(--navy);border-radius:4px;padding:40px;text-align:center;background:linear-gradient(135deg,#fff9eb,#ffffff);max-width:600px;margin:0 auto;position:relative;overflow:hidden}
+.cert-preview::before{content:'';position:absolute;inset:12px;border:2px solid var(--accent);pointer-events:none}
+.cert-title{font-family:'Lora',serif;font-size:32px;color:var(--navy);margin-bottom:4px}
+.cert-sub{font-size:13px;color:var(--gray500);letter-spacing:2px;text-transform:uppercase;margin-bottom:24px}
+.cert-name{font-family:'Lora',serif;font-size:28px;color:var(--accent);border-bottom:2px solid var(--accent);display:inline-block;padding-bottom:4px;margin-bottom:16px}
+.cert-date{font-size:13px;color:var(--gray400)}
+/* SETTINGS */
+.color-swatch{width:36px;height:36px;border-radius:8px;cursor:pointer;border:2px solid var(--gray200);transition:.2s}
+.color-swatch:hover{transform:scale(1.1)}
+/* MISC */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--white);border-radius:14px;padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;margin:20px}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-title{font-size:18px;font-weight:700}
+.modal-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--gray400);padding:4px}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:#fff;padding:12px 20px;border-radius:10px;font-size:13.5px;font-weight:600;z-index:999;transform:translateY(80px);opacity:0;transition:.3s;max-width:320px}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{background:var(--green)}.toast.error{background:var(--red)}
+.empty-state{text-align:center;padding:60px 20px;color:var(--gray400)}
+.empty-state .empty-icon{font-size:48px;margin-bottom:12px}
+.empty-state p{font-size:14px}
+.login-screen{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:1000}
+.login-card{background:var(--white);border-radius:16px;padding:40px;width:100%;max-width:420px;margin:20px}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo h1{font-family:'Lora',serif;color:var(--navy);font-size:28px}
+.login-logo p{color:var(--gray500);font-size:13px;margin-top:4px}
+.login-footer{text-align:center;margin-top:20px;font-size:12.5px;color:var(--gray400)}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--gray100);border-radius:20px;font-size:12px;font-weight:600;color:var(--gray600)}
+.mobile-toggle{display:none;background:none;border:none;cursor:pointer;padding:8px;color:var(--gray700)}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:90}
+@media(max-width:900px){.stats-grid{grid-template-columns:1fr 1fr}.courses-grid{grid-template-columns:1fr 1fr}.builder-layout{grid-template-columns:1fr}.viewer-layout{grid-template-columns:1fr}}
+@media(max-width:640px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.overlay.open{display:block}.mobile-toggle{display:block}.stats-grid{grid-template-columns:1fr 1fr}.courses-grid{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div style="font-size:40px;margin-bottom:8px" id="loginEmoji">🎓</div>
+      <h1 id="loginName">LearnHub</h1>
+      <p id="loginTagline">Platform belajar online Anda</p>
+    </div>
+    <div class="form-group"><label class="form-label">Username</label><input class="form-input" id="loginUser" type="text" placeholder="Masukkan username"></div>
+    <div class="form-group"><label class="form-label">Password</label><input class="form-input" id="loginPass" type="password" placeholder="Masukkan password"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" onclick="doLogin()">Masuk</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- Add Course Modal -->
+<div class="modal-bg" id="addCourseModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="modalCourseTitle">Tambah Kursus</div><button class="modal-close" onclick="closeModal('addCourseModal')">✕</button></div>
+    <div class="form-group"><label class="form-label">Judul Kursus *</label><input class="form-input" id="courseTitle" placeholder="Misal: Belajar Python dari Nol"></div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Kategori</label><select class="form-select" id="courseCategory"><option>Pemrograman</option><option>Desain</option><option>Bisnis</option><option>Marketing</option><option>Bahasa</option><option>Matematika</option></select></div>
+      <div class="form-group"><label class="form-label">Level</label><select class="form-select" id="courseLevel"><option>Pemula</option><option>Menengah</option><option>Lanjutan</option></select></div>
+    </div>
+    <div class="form-group"><label class="form-label">Deskripsi</label><textarea class="form-textarea" id="courseDesc" placeholder="Deskripsi singkat kursus"></textarea></div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Emoji</label><input class="form-input" id="courseEmoji" value="📚"></div>
+      <div class="form-group"><label class="form-label">Warna Latar</label><select class="form-select" id="courseBg"><option value="#1e3a5f">Biru Navy</option><option value="#1a3a2a">Hijau</option><option value="#3a1a2a">Merah</option><option value="#2a1a3a">Ungu</option><option value="#3a2a1a">Coklat</option></select></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-outline" onclick="closeModal('addCourseModal')">Batal</button><button class="btn btn-primary" onclick="saveCourse()">💾 Simpan</button></div>
+  </div>
+</div>
+
+<!-- Add Lesson Modal -->
+<div class="modal-bg" id="addLessonModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Tambah Pelajaran</div><button class="modal-close" onclick="closeModal('addLessonModal')">✕</button></div>
+    <div class="form-group"><label class="form-label">Kursus</label><select class="form-select" id="lessonCourse"></select></div>
+    <div class="form-group"><label class="form-label">Modul / Bab</label><input class="form-input" id="lessonModule" placeholder="Misal: Bab 1: Pengenalan"></div>
+    <div class="form-group"><label class="form-label">Judul Pelajaran *</label><input class="form-input" id="lessonTitle" placeholder="Misal: Apa itu Python?"></div>
+    <div class="form-group"><label class="form-label">Tipe</label><select class="form-select" id="lessonType" onchange="toggleLessonFields()"><option value="video">Video YouTube</option><option value="text">Teks / Artikel</option><option value="quiz">Kuis</option></select></div>
+    <div id="videoField" class="form-group"><label class="form-label">Link YouTube</label><input class="form-input" id="lessonVideo" placeholder="https://www.youtube.com/watch?v=..."></div>
+    <div id="textField" class="form-group" style="display:none"><label class="form-label">Konten Teks</label><textarea class="form-textarea" id="lessonContent" style="min-height:130px" placeholder="Isi pelajaran..."></textarea></div>
+    <div class="form-group"><label class="form-label">Durasi (menit)</label><input class="form-input" id="lessonDuration" type="number" value="10"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-outline" onclick="closeModal('addLessonModal')">Batal</button><button class="btn btn-primary" onclick="saveLesson()">💾 Simpan</button></div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <h1 id="sidebarLogo">🎓 LearnHub</h1>
+    <span id="sidebarTagline">Learning Platform</span>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section">
+      <div class="nav-label">Menu Utama</div>
+      <div class="nav-item" onclick="navigate('dashboard')"><span class="nav-icon">🏠</span> Dashboard</div>
+      <div class="nav-item" onclick="navigate('catalog')"><span class="nav-icon">📚</span> Katalog Kursus</div>
+      <div class="nav-item" onclick="navigate('my-courses')"><span class="nav-icon">🎯</span> Kursus Saya</div>
+      <div class="nav-item" onclick="navigate('certificates')"><span class="nav-icon">🏆</span> Sertifikat</div>
+    </div>
+    <div class="nav-section" id="adminNav" style="display:none">
+      <div class="nav-label">Panel Admin</div>
+      <div class="nav-item" onclick="navigate('admin')"><span class="nav-icon">⚙️</span> Kelola Konten</div>
+      <div class="nav-item" onclick="navigate('students')"><span class="nav-icon">👥</span> Data Siswa</div>
+      <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">🛠️</span> Pengaturan</div>
+    </div>
+  </div>
+  <div class="sidebar-user">
+    <div class="user-card">
+      <div class="user-avatar" id="userAvatar">S</div>
+      <div><div class="user-name" id="userName">Siswa</div><div class="user-role" id="userRole">Pelajar</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()" style="margin-left:auto;padding:6px" title="Keluar">🚪</button>
+    </div>
+  </div>
+</nav>
+
+<div class="main" id="mainContent">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="mobile-toggle" onclick="openSidebar()">☰</button>
+      <div class="topbar-title" id="pageTitle">Dashboard</div>
+    </div>
+    <div class="topbar-actions"><span id="enrollCount" class="chip">0 kursus</span></div>
+  </div>
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="section-header"><div class="section-title">Lanjutkan Belajar</div><div class="section-link" onclick="navigate('my-courses')">Lihat semua →</div></div>
+      <div class="courses-grid" id="continueLearning"></div>
+      <div style="margin-top:28px">
+        <div class="section-header"><div class="section-title">Kursus Populer</div><div class="section-link" onclick="navigate('catalog')">Lihat semua →</div></div>
+        <div class="courses-grid" id="popularCourses"></div>
+      </div>
+    </div>
+
+    <!-- CATALOG -->
+    <div class="page" id="page-catalog">
+      <div class="search-bar">
+        <input class="search-input" id="searchInput" placeholder="🔍  Cari kursus..." oninput="filterCatalog()">
+        <select class="filter-select" onchange="filterCatalog()" id="catFilter"><option value="">Semua Kategori</option><option>Pemrograman</option><option>Desain</option><option>Bisnis</option><option>Marketing</option><option>Bahasa</option><option>Matematika</option></select>
+      </div>
+      <div class="courses-grid" id="catalogGrid"></div>
+    </div>
+
+    <!-- MY COURSES -->
+    <div class="page" id="page-my-courses"><div class="courses-grid" id="myCoursesGrid"></div></div>
+
+    <!-- VIEWER -->
+    <div class="page" id="page-viewer">
+      <div style="margin-bottom:16px;display:flex;align-items:center;gap:8px">
+        <button class="btn btn-outline btn-sm" onclick="navigate('my-courses')">← Kembali</button>
+        <span id="viewerCourseTitle" style="font-weight:700;font-size:15px"></span>
+      </div>
+      <div class="viewer-layout">
+        <div>
+          <div class="lesson-player">
+            <div class="lesson-title-bar"><h2 id="currentLessonTitle">Pilih pelajaran</h2><p id="currentLessonModule" style="color:var(--gray500);font-size:12.5px;margin-top:2px"></p></div>
+            <div id="lessonMediaArea"></div>
+            <div class="lesson-nav">
+              <button class="btn btn-outline btn-sm" id="prevLessonBtn" onclick="prevLesson()">← Sebelumnya</button>
+              <button class="btn btn-primary btn-sm" id="markDoneBtn" onclick="markLessonDone()">✓ Tandai Selesai</button>
+              <button class="btn btn-outline btn-sm" id="nextLessonBtn" onclick="nextLesson()">Selanjutnya →</button>
+            </div>
+          </div>
+        </div>
+        <div class="sidebar-modules"><div class="modules-header">📋 Daftar Pelajaran</div><div id="lessonSidebarList"></div></div>
+      </div>
+    </div>
+
+    <!-- QUIZ -->
+    <div class="page" id="page-quiz"><div class="quiz-wrap" id="quizContent"></div></div>
+
+    <!-- CERTIFICATES -->
+    <div class="page" id="page-certificates"><div id="certList"></div></div>
+
+    <!-- ADMIN -->
+    <div class="page" id="page-admin">
+      <div class="admin-tabs">
+        <div class="admin-tab active" onclick="switchAdminTab('courses')">📚 Kursus</div>
+        <div class="admin-tab" onclick="switchAdminTab('lessons')">📝 Pelajaran</div>
+        <div class="admin-tab" onclick="switchAdminTab('quizzes')">❓ Buat Kuis</div>
+      </div>
+      <div id="adminTabContent"></div>
+    </div>
+
+    <!-- STUDENTS -->
+    <div class="page" id="page-students"><div class="card"><div id="studentsTable"></div></div></div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div style="max-width:700px">
+        <div class="card" style="margin-bottom:20px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px"><span style="font-size:22px">🏫</span><div><div style="font-weight:700;font-size:15px">Identitas Platform</div><div style="font-size:12.5px;color:var(--gray500)">Nama, logo, dan tagline</div></div></div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Nama Platform</label><input class="form-input" id="set-name" placeholder="LearnHub"></div>
+            <div class="form-group"><label class="form-label">Emoji / Logo</label><input class="form-input" id="set-emoji" placeholder="🎓"></div>
+          </div>
+          <div class="form-group"><label class="form-label">Tagline</label><input class="form-input" id="set-tagline" placeholder="Platform belajar online Anda"></div>
+          <button class="btn btn-primary" onclick="saveIdentity()">💾 Simpan Identitas</button>
+        </div>
+        <div class="card" style="margin-bottom:20px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px"><span style="font-size:22px">🎨</span><div><div style="font-weight:700;font-size:15px">Tema Warna</div><div style="font-size:12.5px;color:var(--gray500)">Klik kotak warna untuk memilih</div></div></div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Warna Aksen</label><div style="display:flex;align-items:center;gap:10px"><input type="color" id="set-accent" value="#f59e0b" style="width:50px;height:42px;border:1.5px solid var(--gray200);border-radius:8px;cursor:pointer;padding:2px"><input class="form-input" id="set-accent-hex" value="#f59e0b" style="flex:1" oninput="syncColor('accent')"></div></div>
+            <div class="form-group"><label class="form-label">Warna Sidebar</label><div style="display:flex;align-items:center;gap:10px"><input type="color" id="set-navy" value="#0f1f3d" style="width:50px;height:42px;border:1.5px solid var(--gray200);border-radius:8px;cursor:pointer;padding:2px"><input class="form-input" id="set-navy-hex" value="#0f1f3d" style="flex:1" oninput="syncColor('navy')"></div></div>
+          </div>
+          <div style="margin-bottom:16px"><div style="font-size:13px;font-weight:600;color:var(--gray700);margin-bottom:10px">Tema Cepat:</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <div onclick="applyTheme('#f59e0b','#0f1f3d')" class="color-swatch" style="background:linear-gradient(135deg,#f59e0b 50%,#0f1f3d 50%)" title="Emas"></div>
+              <div onclick="applyTheme('#3b82f6','#0f172a')" class="color-swatch" style="background:linear-gradient(135deg,#3b82f6 50%,#0f172a 50%)" title="Biru"></div>
+              <div onclick="applyTheme('#10b981','#064e3b')" class="color-swatch" style="background:linear-gradient(135deg,#10b981 50%,#064e3b 50%)" title="Hijau"></div>
+              <div onclick="applyTheme('#8b5cf6','#2e1065')" class="color-swatch" style="background:linear-gradient(135deg,#8b5cf6 50%,#2e1065 50%)" title="Ungu"></div>
+              <div onclick="applyTheme('#ef4444','#450a0a')" class="color-swatch" style="background:linear-gradient(135deg,#ef4444 50%,#450a0a 50%)" title="Merah"></div>
+              <div onclick="applyTheme('#f97316','#431407')" class="color-swatch" style="background:linear-gradient(135deg,#f97316 50%,#431407 50%)" title="Oranye"></div>
+              <div onclick="applyTheme('#ec4899','#500724')" class="color-swatch" style="background:linear-gradient(135deg,#ec4899 50%,#500724 50%)" title="Pink"></div>
+              <div onclick="applyTheme('#14b8a6','#042f2e')" class="color-swatch" style="background:linear-gradient(135deg,#14b8a6 50%,#042f2e 50%)" title="Teal"></div>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveTheme()">🎨 Terapkan Warna</button>
+        </div>
+        <div class="card" style="margin-bottom:20px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:10px"><span style="font-size:22px">👤</span><div><div style="font-weight:700;font-size:15px">Kelola Akun Pengguna</div><div style="font-size:12.5px;color:var(--gray500)">Tambah, edit, atau hapus akun</div></div></div>
+            <button class="btn btn-primary btn-sm" onclick="showAddUser()">+ Tambah Akun</button>
+          </div>
+          <div id="userListSettings"></div>
+        </div>
+        <div class="card" id="userFormCard" style="display:none;margin-bottom:20px;border:2px solid var(--accent)">
+          <div style="font-weight:700;font-size:15px;margin-bottom:16px" id="userFormTitle">Tambah Akun Baru</div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Nama Lengkap</label><input class="form-input" id="uf-name" placeholder="Budi Santoso"></div>
+            <div class="form-group"><label class="form-label">Username</label><input class="form-input" id="uf-username" placeholder="budi123"></div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Password</label><input class="form-input" id="uf-password" type="password" placeholder="Min. 4 karakter"></div>
+            <div class="form-group"><label class="form-label">Role</label><select class="form-select" id="uf-role"><option value="student">Siswa</option><option value="admin">Admin</option></select></div>
+          </div>
+          <div style="display:flex;gap:10px"><button class="btn btn-primary" onclick="saveUserAccount()">💾 Simpan</button><button class="btn btn-outline" onclick="cancelUserForm()">Batal</button></div>
+        </div>
+        <div class="card" style="border:1.5px solid rgba(239,68,68,0.3)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span style="font-size:22px">⚠️</span><div><div style="font-weight:700;font-size:15px;color:var(--red)">Reset Data</div><div style="font-size:12.5px;color:var(--gray500)">Hapus semua data dan kembali ke awal</div></div></div>
+          <button class="btn btn-danger btn-sm" onclick="resetAllData()">🗑️ Reset Semua Data</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ========== DATA ==========
+let db = {
+  courses:[
+    {id:'c1',title:'Belajar Python dari Nol',category:'Pemrograman',level:'Pemula',desc:'Kuasai Python mulai dari dasar hingga membuat program sederhana.',emoji:'🐍',bg:'#1e3a5f',status:'active'},
+    {id:'c2',title:'Desain UI/UX Modern',category:'Desain',level:'Menengah',desc:'Pelajari prinsip desain antarmuka pengguna menggunakan Figma.',emoji:'🎨',bg:'#2a1a3a',status:'active'},
+    {id:'c3',title:'Digital Marketing Dasar',category:'Marketing',level:'Pemula',desc:'Strategi marketing online: SEO, media sosial, email marketing.',emoji:'📱',bg:'#1a3a2a',status:'active'},
+    {id:'c4',title:'Microsoft Excel Lengkap',category:'Bisnis',level:'Pemula',desc:'Formula dasar hingga pivot table dan visualisasi data.',emoji:'📊',bg:'#3a2a1a',status:'active'},
+  ],
+  lessons:[
+    {id:'l1',courseId:'c1',module:'Bab 1: Pengenalan',title:'Apa itu Python?',type:'text',content:'Python adalah bahasa pemrograman tingkat tinggi yang mudah dipelajari. Dibuat oleh Guido van Rossum pada tahun 1991.\n\nMengapa Python populer?\n• Mudah dipelajari untuk pemula\n• Komunitas yang besar dan aktif\n• Digunakan di web, data science, AI, dan otomasi\n• Banyak library gratis tersedia',duration:10},
+    {id:'l2',courseId:'c1',module:'Bab 1: Pengenalan',title:'Install Python & VS Code',type:'video',video:'https://www.youtube.com/embed/VqgUkExPvLY',duration:15},
+    {id:'l3',courseId:'c1',module:'Bab 2: Dasar-dasar',title:'Variabel & Tipe Data',type:'text',content:'Variabel adalah wadah untuk menyimpan data.\n\nTipe data dasar Python:\n1. String (str) - Teks: nama = "Budi"\n2. Integer (int) - Bilangan bulat: umur = 25\n3. Float - Desimal: tinggi = 170.5\n4. Boolean (bool) - True/False: aktif = True',duration:12},
+    {id:'l4',courseId:'c1',module:'Bab 2: Dasar-dasar',title:'Kuis: Python Dasar',type:'quiz',duration:10},
+    {id:'l5',courseId:'c2',module:'Bab 1: Fondasi',title:'Prinsip Desain UI/UX',type:'text',content:'UI adalah tampilan visual. UX adalah pengalaman pengguna.\n\nPrinsip desain:\n1. Hierarchy Visual - tata letak yang jelas\n2. Konsistensi - komponen seragam\n3. Whitespace - ruang kosong membantu keterbacaan\n4. Kontras - teks mudah dibaca\n5. Alignment - elemen sejajar',duration:10},
+    {id:'l6',courseId:'c2',module:'Bab 1: Fondasi',title:'Pengenalan Figma',type:'video',video:'https://www.youtube.com/embed/FTFaQWZBqQ8',duration:20},
+    {id:'l7',courseId:'c3',module:'Bab 1: Dasar',title:'Apa itu Digital Marketing?',type:'text',content:'Digital marketing adalah pemasaran menggunakan media digital.\n\nChannel utama:\n• SEO (Search Engine Optimization)\n• Social Media Marketing\n• Email Marketing\n• Content Marketing\n• PPC Advertising\n\nKeunggulan: biaya efisien, target tepat, hasil terukur.',duration:10},
+    {id:'l8',courseId:'c3',module:'Bab 1: Dasar',title:'Kuis: Digital Marketing',type:'quiz',duration:8},
+  ],
+  quizzes:[
+    // PG questions for c1
+    {id:'q1',courseId:'c1',type:'pg',question:'Siapa yang menciptakan Python?',options:['James Gosling','Guido van Rossum','Dennis Ritchie','Bjarne Stroustrup'],answer:1},
+    {id:'q2',courseId:'c1',type:'pg',question:'Tipe data untuk teks di Python?',options:['int','float','str','bool'],answer:2},
+    {id:'q3',courseId:'c1',type:'pg',question:'Apa output dari: print(type(3.14))?',options:["<class 'int'>","<class 'str'>","<class 'float'>","<class 'bool'>"],answer:2},
+    // Esai question for c1
+    {id:'q4',courseId:'c1',type:'esai',question:'Jelaskan perbedaan antara tipe data int, float, dan str di Python. Berikan contoh penggunaannya masing-masing!',rubric:[
+      {id:'r1',criteria:'Penjelasan int',desc:'Menjelaskan integer dengan tepat dan memberikan contoh yang benar',maxScore:30},
+      {id:'r2',criteria:'Penjelasan float',desc:'Menjelaskan float dengan tepat dan memberikan contoh yang benar',maxScore:30},
+      {id:'r3',criteria:'Penjelasan str',desc:'Menjelaskan string dengan tepat dan memberikan contoh yang benar',maxScore:30},
+      {id:'r4',criteria:'Kerapian jawaban',desc:'Jawaban terstruktur, menggunakan bahasa yang jelas dan mudah dipahami',maxScore:10},
+    ]},
+    // PG questions for c3
+    {id:'q5',courseId:'c3',type:'pg',question:'Apa kepanjangan dari SEO?',options:['Social Engine Optimization','Search Engine Optimization','Search Engagement Online','Social Engagement Optimization'],answer:1},
+    {id:'q6',courseId:'c3',type:'pg',question:'Platform media sosial untuk B2B marketing?',options:['TikTok','Instagram','LinkedIn','Pinterest'],answer:2},
+    // Esai for c3
+    {id:'q7',courseId:'c3',type:'esai',question:'Buatlah rencana strategi digital marketing untuk sebuah toko online baju lokal. Jelaskan minimal 3 channel yang akan digunakan dan alasannya!',rubric:[
+      {id:'r1',criteria:'Pemilihan channel',desc:'Menyebutkan minimal 3 channel digital marketing yang relevan',maxScore:30},
+      {id:'r2',criteria:'Alasan dan strategi',desc:'Memberikan alasan yang logis untuk setiap channel yang dipilih',maxScore:40},
+      {id:'r3',criteria:'Kreativitas',desc:'Ide strategi kreatif dan orisinal, bukan sekadar menyebutkan',maxScore:20},
+      {id:'r4',criteria:'Penyajian',desc:'Jawaban terstruktur dan rapi',maxScore:10},
+    ]},
+  ],
+  users:[
+    {id:'u1',name:'Admin LearnHub',username:'admin',password:'admin123',role:'admin',avatar:'A'},
+    {id:'u2',name:'Budi Santoso',username:'siswa',password:'siswa123',role:'student',avatar:'B',enrolled:['c1','c3'],progress:{'c1':{'l1':true,'l2':true},'c3':{'l7':true}}},
+    {id:'u3',name:'Siti Rahma',username:'siti',password:'siti123',role:'student',avatar:'S',enrolled:['c2'],progress:{'c2':{'l5':true}}},
+  ]
+};
+
+let currentUser=null, currentCourseId=null, currentLessonIdx=0;
+let quizState={questions:[],answers:{},essayScores:{},done:false,courseId:null};
+let editCourseId=null, editUserId=null;
+// Quiz builder state
+let builderQuestions=[], builderRubricRows=0;
+
+function loadDB(){
+  const s=localStorage.getItem('learnhub_db');
+  if(s){const p=JSON.parse(s);db.courses=p.courses||db.courses;db.lessons=p.lessons||db.lessons;db.quizzes=p.quizzes||db.quizzes;db.users=p.users||db.users;}
+}
+function saveDB(){localStorage.setItem('learnhub_db',JSON.stringify({courses:db.courses,lessons:db.lessons,quizzes:db.quizzes,users:db.users}));}
+
+// ========== AUTH ==========
+function doLogin(){
+  const u=document.getElementById('loginUser').value.trim();
+  const p=document.getElementById('loginPass').value.trim();
+  const user=db.users.find(x=>x.username===u&&x.password===p);
+  if(!user){toast('Username atau password salah!','error');return;}
+  currentUser=user;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('userName').textContent=user.name;
+  document.getElementById('userRole').textContent=user.role==='admin'?'Administrator':'Pelajar';
+  document.getElementById('userAvatar').textContent=user.avatar||user.name[0];
+  document.getElementById('adminNav').style.display=user.role==='admin'?'block':'none';
+  updateEnrollCount();
+  navigate('dashboard');
+}
+function doLogout(){
+  currentUser=null;
+  document.getElementById('adminNav').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('loginUser').value='';
+  document.getElementById('loginPass').value='';
+}
+document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+document.getElementById('loginUser').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+
+// ========== NAVIGATION ==========
+function navigate(page,cid){
+  const titles={dashboard:'Dashboard',catalog:'Katalog Kursus','my-courses':'Kursus Saya',viewer:'Lihat Kursus',quiz:'Kuis',certificates:'Sertifikat',admin:'Panel Admin',students:'Data Siswa',settings:'⚙️ Pengaturan'};
+  const adminPages=['admin','students','settings'];
+  if(adminPages.includes(page)&&currentUser?.role!=='admin'){toast('Akses ditolak. Hanya admin.','error');return;}
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const el=document.getElementById('page-'+page);
+  if(el)el.classList.add('active');
+  document.getElementById('pageTitle').textContent=titles[page]||page;
+  closeSidebar();
+  if(page==='dashboard')renderDashboard();
+  else if(page==='catalog')renderCatalog();
+  else if(page==='my-courses')renderMyCourses();
+  else if(page==='viewer')renderViewer(cid||currentCourseId);
+  else if(page==='certificates')renderCerts();
+  else if(page==='admin')renderAdmin('courses');
+  else if(page==='students')renderStudents();
+  else if(page==='settings')renderSettings();
+}
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('open')}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('open')}
+
+// ========== HELPERS ==========
+function toast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.className='toast',2800);}
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+function updateEnrollCount(){const n=getUser()?.enrolled?.length||0;document.getElementById('enrollCount').textContent=n+' kursus';}
+function getUser(){return db.users.find(u=>u.id===currentUser?.id)}
+function saveUser(u){const i=db.users.findIndex(x=>x.id===u.id);if(i>=0)db.users[i]=u;saveDB();}
+function isEnrolled(cid){return getUser()?.enrolled?.includes(cid)}
+function getProgress(cid){return getUser()?.progress?.[cid]||{}}
+function getLessons(cid){return db.lessons.filter(l=>l.courseId===cid)}
+function getProgressPct(cid){const ls=getLessons(cid);if(!ls.length)return 0;return Math.round(ls.filter(l=>getProgress(cid)[l.id]).length/ls.length*100)}
+function getProgressPctForUser(user,cid){const ls=db.lessons.filter(l=>l.courseId===cid);if(!ls.length)return 0;return Math.round(ls.filter(l=>user?.progress?.[cid]?.[l.id]).length/ls.length*100)}
+function extractYT(url){const m=(url||'').match(/(?:v=|embed\/|youtu\.be\/)([^&\n?#]+)/);return m?m[1]:'';}
+
+// ========== DASHBOARD ==========
+function renderDashboard(){
+  const user=getUser();const enrolled=user?.enrolled||[];
+  const completed=enrolled.filter(c=>getProgressPct(c)===100).length;
+  const avg=enrolled.length?Math.round(enrolled.reduce((s,c)=>s+getProgressPct(c),0)/enrolled.length):0;
+  document.getElementById('statsGrid').innerHTML=`
+    <div class="stat-card"><div class="stat-icon" style="background:#fff3cd">📚</div><div class="stat-value">${enrolled.length}</div><div class="stat-label">Kursus Diikuti</div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:#d1fae5">✅</div><div class="stat-value">${completed}</div><div class="stat-label">Kursus Selesai</div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:#dbeafe">📈</div><div class="stat-value">${avg}%</div><div class="stat-label">Rata-rata Progress</div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:#fce7f3">🏆</div><div class="stat-value">${completed}</div><div class="stat-label">Sertifikat</div></div>`;
+  const cont=document.getElementById('continueLearning');
+  if(!enrolled.length){cont.innerHTML='<div class="empty-state"><div class="empty-icon">📖</div><p>Belum ada kursus. <span style="color:var(--accent);cursor:pointer" onclick="navigate(\'catalog\')">Cari kursus →</span></p></div>';return;}
+  cont.innerHTML=enrolled.slice(0,3).map(cid=>courseCardHTML(db.courses.find(x=>x.id===cid),true,getProgressPct(cid))).filter(Boolean).join('');
+  document.getElementById('popularCourses').innerHTML=db.courses.filter(c=>!enrolled.includes(c.id)&&c.status==='active').slice(0,3).map(c=>courseCardHTML(c,false,0)).join('');
+}
+function courseCardHTML(c,enrolled,pct){
+  if(!c)return'';
+  const progressHtml=enrolled
+    ?`<div style="margin-top:8px"><div class="progress-label"><span>Progress</span><span>${pct}%</span></div><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div></div>`
+    :`<button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:10px" onclick="event.stopPropagation();enrollCourse('${c.id}')">+ Ikuti Kursus</button>`;
+  return `<div class="course-card" onclick="${enrolled?`navigate('viewer','${c.id}')`:`enrollCourse('${c.id}')`}">
+    <div class="course-thumb" style="background:${c.bg}">${c.emoji}${enrolled?`<div class="course-badge">${pct}%</div>`:''}
+    </div>
+    <div class="course-body">
+      <div class="course-tag">${c.category}</div>
+      <div class="course-title">${c.title}</div>
+      <div class="course-meta"><span>📊 ${c.level}</span><span>📝 ${getLessons(c.id).length} pelajaran</span></div>
+      ${progressHtml}
+      ${enrolled&&pct===100?'<div style="margin-top:8px;text-align:center;color:var(--green);font-weight:700;font-size:13px">🏆 Selesai!</div>':''}
+    </div></div>`;
+}
+
+// ========== CATALOG ==========
+function renderCatalog(){filterCatalog();}
+function filterCatalog(){
+  const q=document.getElementById('searchInput').value.toLowerCase();
+  const cat=document.getElementById('catFilter').value;
+  const enrolled=getUser()?.enrolled||[];
+  const filtered=db.courses.filter(c=>c.status==='active'&&(!q||c.title.toLowerCase().includes(q)||c.desc.toLowerCase().includes(q))&&(!cat||c.category===cat));
+  document.getElementById('catalogGrid').innerHTML=filtered.length?filtered.map(c=>{
+    const isEnr=enrolled.includes(c.id);const pct=getProgressPct(c.id);
+    const btn=isEnr?`<button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:10px" onclick="event.stopPropagation();navigate('viewer','${c.id}')">📖 Lanjutkan</button>`
+      :`<button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:10px" onclick="event.stopPropagation();enrollCourse('${c.id}')">+ Ikuti Sekarang</button>`;
+    return `<div class="course-card" onclick="${isEnr?`navigate('viewer','${c.id}')`:`enrollCourse('${c.id}')`}">
+      <div class="course-thumb" style="background:${c.bg}">${c.emoji}${isEnr?`<div class="course-badge">${pct}%</div>`:''}</div>
+      <div class="course-body">
+        <div class="course-tag">${c.category}</div>
+        <div class="course-title">${c.title}</div>
+        <div class="course-meta"><span>📊 ${c.level}</span><span>📝 ${getLessons(c.id).length} pelajaran</span></div>
+        <div style="font-size:12.5px;color:var(--gray500);margin:8px 0;line-height:1.5">${c.desc}</div>
+        ${btn}
+      </div></div>`;
+  }).join(''):`<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🔍</div><p>Tidak ada kursus.</p></div>`;
+}
+function enrollCourse(cid){
+  const user=getUser();if(!user.enrolled)user.enrolled=[];
+  if(user.enrolled.includes(cid)){navigate('viewer',cid);return;}
+  user.enrolled.push(cid);if(!user.progress)user.progress={};user.progress[cid]={};
+  saveUser(user);currentUser=user;updateEnrollCount();
+  toast('Berhasil mendaftar kursus! 🎉','success');filterCatalog();navigate('viewer',cid);
+}
+
+// ========== MY COURSES ==========
+function renderMyCourses(){
+  const enrolled=getUser()?.enrolled||[];
+  const grid=document.getElementById('myCoursesGrid');
+  if(!enrolled.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📚</div><p>Belum ada kursus. <span style="color:var(--accent);cursor:pointer" onclick="navigate(\'catalog\')">Cari kursus →</span></p></div>';return;}
+  grid.innerHTML=enrolled.map(cid=>courseCardHTML(db.courses.find(x=>x.id===cid),true,getProgressPct(cid))).filter(Boolean).join('');
+}
+
+// ========== VIEWER ==========
+let currentLessons=[];
+function renderViewer(cid){
+  if(!cid)return;currentCourseId=cid;
+  const course=db.courses.find(c=>c.id===cid);if(!course)return;
+  if(!isEnrolled(cid)){enrollCourse(cid);return;}
+  document.getElementById('viewerCourseTitle').textContent=course.title;
+  currentLessons=getLessons(cid);renderLessonSidebar();
+  const first=currentLessons.findIndex(l=>!getProgress(cid)[l.id]);
+  loadLesson(first>=0?first:0);
+}
+function renderLessonSidebar(){
+  const progress=getProgress(currentCourseId);
+  const modules=[...new Set(currentLessons.map(l=>l.module||'Pelajaran'))];
+  let html='';
+  modules.forEach(mod=>{
+    const mL=currentLessons.filter(l=>(l.module||'Pelajaran')===mod);
+    html+=`<div><div class="module-header">📂 ${mod}</div>${mL.map(l=>{
+      const idx=currentLessons.indexOf(l);const done=progress[l.id];
+      const icon=l.type==='video'?'🎬':l.type==='quiz'?'❓':'📄';
+      return `<div class="lesson-item ${done?'completed':''}" id="li-${l.id}" onclick="loadLesson(${idx})">
+        <div class="lesson-check ${done?'done':''}">${done?'✓':''}</div>
+        <span>${icon} ${l.title}</span>
+        <span class="lesson-duration">${l.duration}m</span>
+      </div>`;
+    }).join('')}</div>`;
+  });
+  document.getElementById('lessonSidebarList').innerHTML=html;
+}
+function loadLesson(idx){
+  if(idx<0||idx>=currentLessons.length)return;
+  currentLessonIdx=idx;const l=currentLessons[idx];
+  document.querySelectorAll('.lesson-item').forEach(x=>x.classList.remove('active'));
+  document.getElementById('li-'+l.id)?.classList.add('active');
+  document.getElementById('currentLessonTitle').textContent=l.title;
+  document.getElementById('currentLessonModule').textContent=l.module||'';
+  const area=document.getElementById('lessonMediaArea');
+  if(l.type==='video'){
+    const ytId=extractYT(l.video||'');
+    area.innerHTML=ytId?`<div class="video-container"><iframe src="https://www.youtube.com/embed/${ytId}" allowfullscreen></iframe></div>`
+      :`<div class="video-placeholder"><div style="font-size:40px">🎬</div><p>Video tidak tersedia</p></div>`;
+  } else if(l.type==='quiz'){
+    const qCount=db.quizzes.filter(q=>q.courseId===currentCourseId).length;
+    const pgCount=db.quizzes.filter(q=>q.courseId===currentCourseId&&q.type==='pg').length;
+    const esaiCount=db.quizzes.filter(q=>q.courseId===currentCourseId&&q.type==='esai').length;
+    area.innerHTML=`<div style="padding:40px;text-align:center">
+      <div style="font-size:48px;margin-bottom:12px">❓</div>
+      <h3 style="margin-bottom:8px">${l.title}</h3>
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:20px">
+        ${pgCount?`<span style="padding:4px 12px;background:rgba(59,130,246,.1);color:var(--blue);border-radius:20px;font-size:12px;font-weight:700">🔵 ${pgCount} Pilihan Ganda</span>`:''}
+        ${esaiCount?`<span style="padding:4px 12px;background:rgba(139,92,246,.1);color:#7c3aed;border-radius:20px;font-size:12px;font-weight:700">🟣 ${esaiCount} Esai</span>`:''}
+      </div>
+      <p style="color:var(--gray500);font-size:13.5px;margin-bottom:24px">Total ${qCount} soal · Jawab semua soal kemudian klik Selesai</p>
+      <button class="btn btn-primary" onclick="startQuiz('${currentCourseId}')">Mulai Kuis 🚀</button>
+    </div>`;
+  } else {
+    const content=(l.content||'').split('\n').map(line=>line?`<p style="margin-bottom:8px">${line}</p>`:'').join('');
+    area.innerHTML=`<div class="text-lesson"><h3>${l.title}</h3>${content}</div>`;
+  }
+  document.getElementById('prevLessonBtn').disabled=idx===0;
+  document.getElementById('nextLessonBtn').disabled=idx===currentLessons.length-1;
+  const done=getProgress(currentCourseId)[l.id];
+  const btn=document.getElementById('markDoneBtn');
+  btn.textContent=done?'✓ Sudah Selesai':'✓ Tandai Selesai';
+  btn.style.background=done?'var(--green)':'var(--accent)';
+}
+function markLessonDone(){
+  const l=currentLessons[currentLessonIdx];const user=getUser();
+  if(!user.progress[currentCourseId])user.progress[currentCourseId]={};
+  user.progress[currentCourseId][l.id]=true;saveUser(user);currentUser=user;
+  toast('Pelajaran selesai! ✓','success');renderLessonSidebar();
+  document.getElementById('markDoneBtn').textContent='✓ Sudah Selesai';
+  document.getElementById('markDoneBtn').style.background='var(--green)';
+  if(getProgressPct(currentCourseId)===100)setTimeout(()=>toast('🎉 Kursus selesai! Sertifikat tersedia.','success'),500);
+}
+function prevLesson(){if(currentLessonIdx>0)loadLesson(currentLessonIdx-1);}
+function nextLesson(){if(currentLessonIdx<currentLessons.length-1)loadLesson(currentLessonIdx+1);}
+
+// ========== QUIZ (STUDENT) ==========
+function startQuiz(cid){
+  const questions=db.quizzes.filter(q=>q.courseId===cid);
+  if(!questions.length){toast('Belum ada soal untuk kursus ini.','error');return;}
+  quizState={questions,answers:{},essayScores:{},done:false,courseId:cid};
+  navigate('quiz');renderQuiz();
+}
+
+function renderQuiz(){
+  const {questions,answers,done,courseId}=quizState;
+  const c=document.getElementById('quizContent');
+  if(done){renderQuizResult();return;}
+  const pgQ=questions.filter(q=>q.type==='pg');
+  const esaiQ=questions.filter(q=>q.type==='esai');
+  const letters=['A','B','C','D'];
+  let html=`
+    <div class="quiz-topbar">
+      <h2>📝 Kuis</h2>
+      <div style="display:flex;gap:8px">
+        ${pgQ.length?`<span style="padding:3px 10px;background:rgba(59,130,246,.1);color:var(--blue);border-radius:20px;font-size:12px;font-weight:700">🔵 ${pgQ.length} PG</span>`:''}
+        ${esaiQ.length?`<span style="padding:3px 10px;background:rgba(139,92,246,.1);color:#7c3aed;border-radius:20px;font-size:12px;font-weight:700">🟣 ${esaiQ.length} Esai</span>`:''}
+      </div>
+    </div>`;
+  questions.forEach((q,i)=>{
+    if(q.type==='pg'){
+      html+=`<div class="q-card">
+        <div class="q-type-badge badge-pg">🔵 Pilihan Ganda</div>
+        <div class="q-num">Soal ${i+1}</div>
+        <div class="q-text">${q.question}</div>
+        ${q.options.map((o,oi)=>`<div class="opt-item ${answers[q.id]===oi?'selected':''}" onclick="selectPG('${q.id}',${oi})">
+          <div class="opt-letter">${letters[oi]}</div>${o}
+        </div>`).join('')}
+      </div>`;
+    } else {
+      html+=`<div class="q-card">
+        <div class="q-type-badge badge-esai">🟣 Soal Esai</div>
+        <div class="q-num">Soal ${i+1}</div>
+        <div class="q-text">${q.question}</div>
+        <textarea class="essay-area" id="essay-${q.id}" placeholder="Tulis jawaban kamu di sini..." oninput="saveEssay('${q.id}')">${answers[q.id]||''}</textarea>
+        <div style="margin-top:8px;font-size:12px;color:var(--gray400)">💡 Jawaban esai akan dinilai berdasarkan rubrik yang tersedia setelah submit.</div>
+      </div>`;
+    }
+  });
+  html+=`<div style="text-align:center;margin-top:8px">
+    <button class="btn btn-primary" style="padding:12px 32px;font-size:15px" onclick="submitQuiz()">✅ Selesai & Lihat Hasil</button>
+  </div>`;
+  c.innerHTML=html;
+}
+
+function selectPG(qid,oi){
+  quizState.answers[qid]=oi;
+  document.querySelectorAll(`[onclick^="selectPG('${qid}"]`).forEach((el,i)=>{
+    el.className='opt-item'+(quizState.answers[qid]===i?' selected':'');
+    el.querySelector('.opt-letter').style.background=quizState.answers[qid]===i?'var(--accent)':'var(--gray100)';
+    el.querySelector('.opt-letter').style.color=quizState.answers[qid]===i?'var(--navy)':'';
+  });
+}
+function saveEssay(qid){quizState.answers[qid]=document.getElementById('essay-'+qid).value;}
+
+function submitQuiz(){
+  // Check unanswered
+  const unanswered=quizState.questions.filter(q=>q.type==='pg'&&quizState.answers[q.id]===undefined);
+  if(unanswered.length>0){
+    if(!confirm(`Masih ada ${unanswered.length} soal pilihan ganda yang belum dijawab. Lanjutkan?`))return;
+  }
+  quizState.done=true;renderQuizResult();
+}
+
+function renderQuizResult(){
+  const {questions,answers,courseId}=quizState;
+  const pgQ=questions.filter(q=>q.type==='pg');
+  const esaiQ=questions.filter(q=>q.type==='esai');
+  const pgCorrect=pgQ.filter(q=>answers[q.id]===q.answer).length;
+  const pgTotal=pgQ.length;
+  const letters=['A','B','C','D'];
+  const c=document.getElementById('quizContent');
+  let html=`
+    <div class="result-box" style="margin-bottom:20px">
+      <div style="font-size:40px;margin-bottom:8px">📊</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:16px">Hasil Kuis</div>
+      <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:24px">
+        ${pgTotal?`<div style="text-align:center;padding:16px 24px;background:rgba(59,130,246,.08);border-radius:12px">
+          <div style="font-size:32px;font-weight:800;color:var(--blue)">${pgCorrect}/${pgTotal}</div>
+          <div style="font-size:12px;color:var(--gray500);margin-top:4px">Pilihan Ganda Benar</div>
+        </div>`:''}
+        ${esaiQ.length?`<div style="text-align:center;padding:16px 24px;background:rgba(139,92,246,.08);border-radius:12px">
+          <div style="font-size:32px;font-weight:800;color:#7c3aed">${esaiQ.length}</div>
+          <div style="font-size:12px;color:var(--gray500);margin-top:4px">Soal Esai (nilai rubrik)</div>
+        </div>`:''}
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button class="btn btn-outline" onclick="quizState.done=false;quizState.answers={};quizState.essayScores={};renderQuiz()">🔄 Ulangi</button>
+        <button class="btn btn-primary" onclick="navigate('viewer','${courseId}');markLessonDone()">✓ Selesai</button>
+      </div>
+    </div>`;
+
+  // PG review
+  if(pgTotal){
+    html+=`<div style="margin-bottom:8px;font-weight:700;font-size:15px">📋 Pembahasan Pilihan Ganda</div>`;
+    pgQ.forEach((q,i)=>{
+      const userAns=answers[q.id];const correct=userAns===q.answer;
+      html+=`<div class="q-card" style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:11px;font-weight:700;color:var(--gray500)">Soal PG ${i+1}</span>
+          <span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;${correct?'background:rgba(16,185,129,.12);color:var(--green)':'background:rgba(239,68,68,.1);color:var(--red)'}">${correct?'✓ Benar':'✗ Salah'}</span>
+        </div>
+        <div class="q-text" style="font-size:14px">${q.question}</div>
+        ${q.options.map((o,oi)=>{
+          let cls='opt-item';
+          if(oi===q.answer)cls+=' correct';
+          else if(oi===userAns&&userAns!==q.answer)cls+=' wrong';
+          return `<div class="${cls}" style="pointer-events:none">
+            <div class="opt-letter">${letters[oi]}</div>${o}
+            ${oi===q.answer?'<span style="margin-left:auto;font-size:12px;color:var(--green);font-weight:700">✓ Kunci</span>':''}
+          </div>`;
+        }).join('')}
+      </div>`;
+    });
+  }
+
+  // Essay with rubric self-assessment
+  if(esaiQ.length){
+    html+=`<div style="margin-bottom:8px;font-weight:700;font-size:15px;margin-top:20px">📝 Penilaian Soal Esai</div>
+    <div style="padding:12px 16px;background:rgba(245,158,11,.08);border-radius:8px;margin-bottom:16px;font-size:13px;color:#92400e">
+      💡 Untuk soal esai, gunakan rubrik di bawah ini untuk menilai jawaban kamu sendiri. Isi skor di setiap kriteria (0 sampai skor maksimal).
+    </div>`;
+    esaiQ.forEach((q,i)=>{
+      const totalMax=q.rubric.reduce((s,r)=>s+r.maxScore,0);
+      html+=`<div class="q-card" style="margin-bottom:16px">
+        <div class="q-type-badge badge-esai">🟣 Esai ${i+1}</div>
+        <div class="q-text" style="font-size:14px">${q.question}</div>
+        <div style="background:var(--gray50);border-radius:8px;padding:14px;margin-bottom:14px">
+          <div style="font-size:11px;font-weight:700;color:var(--gray500);margin-bottom:6px">JAWABAN KAMU:</div>
+          <div style="font-size:13.5px;line-height:1.7;white-space:pre-wrap;color:var(--gray700)">${answers[q.id]||'<em style="color:var(--gray400)">Tidak dijawab</em>'}</div>
+        </div>
+        <div style="font-size:12.5px;font-weight:700;color:var(--gray700);margin-bottom:10px">📏 Rubrik Penilaian (Total: ${totalMax} poin)</div>
+        <table class="rubric-table">
+          <thead><tr><th>Kriteria</th><th>Deskripsi</th><th style="text-align:center">Max</th><th style="text-align:center">Nilai Kamu</th></tr></thead>
+          <tbody>${q.rubric.map(r=>`<tr>
+            <td style="font-weight:600">${r.criteria}</td>
+            <td style="color:var(--gray500)">${r.desc}</td>
+            <td style="text-align:center;font-weight:700">${r.maxScore}</td>
+            <td style="text-align:center"><input type="number" class="rubric-score-input" id="rs-${q.id}-${r.id}" min="0" max="${r.maxScore}" placeholder="0" oninput="calcEssayScore('${q.id}')"></td>
+          </tr>`).join('')}</tbody>
+        </table>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--gray100)">
+          <span style="font-size:13px;color:var(--gray500)">Total nilai esai ini:</span>
+          <span id="esai-total-${q.id}" style="font-size:20px;font-weight:800;color:var(--accent)">0 / ${totalMax}</span>
+        </div>
+      </div>`;
+    });
+  }
+
+  c.innerHTML=html;
+}
+
+function calcEssayScore(qid){
+  const q=quizState.questions.find(x=>x.id===qid);if(!q)return;
+  const total=q.rubric.reduce((s,r)=>{
+    const val=parseInt(document.getElementById('rs-'+qid+'-'+r.id)?.value)||0;
+    return s+Math.min(val,r.maxScore);
+  },0);
+  const max=q.rubric.reduce((s,r)=>s+r.maxScore,0);
+  document.getElementById('esai-total-'+qid).textContent=total+' / '+max;
+}
+
+// ========== CERTS ==========
+function renderCerts(){
+  const user=getUser();
+  const completed=(user?.enrolled||[]).filter(cid=>getProgressPct(cid)===100);
+  const list=document.getElementById('certList');
+  if(!completed.length){list.innerHTML='<div class="empty-state"><div class="empty-icon">🏆</div><p>Selesaikan kursus untuk mendapatkan sertifikat.</p></div>';return;}
+  const today=new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
+  list.innerHTML=completed.map(cid=>{
+    const c=db.courses.find(x=>x.id===cid);if(!c)return'';
+    return `<div class="cert-preview" style="margin-bottom:24px">
+      <div style="font-size:64px;margin-bottom:8px">${c.emoji}</div>
+      <div class="cert-title">Sertifikat Penyelesaian</div>
+      <div class="cert-sub">LearnHub Learning Platform</div>
+      <p style="color:var(--gray500);font-size:13px;margin-bottom:12px">Dengan bangga diberikan kepada</p>
+      <div class="cert-name">${user.name}</div>
+      <div style="font-size:16px;color:var(--gray700);margin-bottom:24px">telah menyelesaikan kursus<br><strong>${c.title}</strong></div>
+      <div class="cert-date">Diterbitkan ${today}</div>
+      <div style="margin-top:20px"><button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ Cetak</button></div>
+    </div>`;
+  }).join('');
+}
+
+// ========== ADMIN ==========
+let adminTab='courses';
+function renderAdmin(tab){
+  adminTab=tab;
+  document.querySelectorAll('.admin-tab').forEach((t,i)=>t.classList.toggle('active',['courses','lessons','quizzes'][i]===tab));
+  const c=document.getElementById('adminTabContent');
+  if(tab==='courses'){
+    c.innerHTML=`<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><button class="btn btn-primary" onclick="openAddCourse()">+ Tambah Kursus</button></div>
+    <div class="card"><table class="table">
+      <thead><tr><th>Kursus</th><th>Kategori</th><th>Pelajaran</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody>${db.courses.map(c=>`<tr>
+        <td><div style="font-weight:600">${c.emoji} ${c.title}</div><div style="font-size:12px;color:var(--gray500)">${c.level}</div></td>
+        <td>${c.category}</td><td>${getLessons(c.id).length}</td>
+        <td><span class="status-badge ${c.status==='active'?'badge-active':'badge-draft'}">${c.status==='active'?'Aktif':'Draft'}</span></td>
+        <td><button class="btn btn-outline btn-sm" onclick="editCourse('${c.id}')">✏️</button> <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteCourse('${c.id}')">🗑️</button></td>
+      </tr>`).join('')}</tbody></table></div>`;
+  } else if(tab==='lessons'){
+    c.innerHTML=`<div style="display:flex;justify-content:flex-end;margin-bottom:16px"><button class="btn btn-primary" onclick="openAddLesson()">+ Tambah Pelajaran</button></div>
+    <div class="card"><table class="table">
+      <thead><tr><th>Pelajaran</th><th>Kursus</th><th>Tipe</th><th>Durasi</th><th>Aksi</th></tr></thead>
+      <tbody>${db.lessons.map(l=>{
+        const cc=db.courses.find(x=>x.id===l.courseId);
+        const typeLabel=l.type==='video'?'🎬 Video':l.type==='quiz'?'❓ Kuis':'📄 Teks';
+        return `<tr>
+          <td><div style="font-weight:600">${l.title}</div><div style="font-size:12px;color:var(--gray500)">${l.module||''}</div></td>
+          <td style="font-size:13px">${cc?.title||'-'}</td><td>${typeLabel}</td><td>${l.duration} menit</td>
+          <td><button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteLesson('${l.id}')">🗑️</button></td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+  } else if(tab==='quizzes'){
+    renderQuizBuilder();
+  }
+}
+function switchAdminTab(tab){renderAdmin(tab);}
+
+// ========== QUIZ BUILDER (ADMIN) ==========
+function renderQuizBuilder(){
+  const c=document.getElementById('adminTabContent');
+  c.innerHTML=`<div class="builder-layout">
+    <div class="builder-form">
+      <h3 style="font-size:16px;font-weight:700;margin-bottom:4px">🛠️ Pembuat Soal Kuis</h3>
+      <p style="font-size:13px;color:var(--gray500);margin-bottom:20px">Buat soal satu per satu, lalu simpan semuanya sekaligus</p>
+      <div class="form-group">
+        <label class="form-label">Untuk Kursus *</label>
+        <select class="form-select" id="bld-course">${db.courses.map(cc=>`<option value="${cc.id}">${cc.emoji} ${cc.title}</option>`).join('')}</select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tipe Soal</label>
+        <div class="type-toggle">
+          <button class="type-btn active" id="btn-pg" onclick="switchQType('pg')">🔵 Pilihan Ganda</button>
+          <button class="type-btn" id="btn-esai" onclick="switchQType('esai')">🟣 Esai + Rubrik</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Pertanyaan *</label>
+        <textarea class="form-textarea" id="bld-question" placeholder="Tulis pertanyaan soal di sini..."></textarea>
+      </div>
+
+      <!-- PG Section -->
+      <div id="pg-section">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div class="form-group" style="margin:0"><label class="form-label">Pilihan A</label><input class="form-input" id="bld-a" placeholder="Jawaban A"></div>
+          <div class="form-group" style="margin:0"><label class="form-label">Pilihan B</label><input class="form-input" id="bld-b" placeholder="Jawaban B"></div>
+          <div class="form-group" style="margin:0"><label class="form-label">Pilihan C</label><input class="form-input" id="bld-c" placeholder="Jawaban C (opsional)"></div>
+          <div class="form-group" style="margin:0"><label class="form-label">Pilihan D</label><input class="form-input" id="bld-d" placeholder="Jawaban D (opsional)"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kunci Jawaban *</label>
+          <select class="form-select" id="bld-answer">
+            <option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Esai Section -->
+      <div id="esai-section" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <label class="form-label" style="margin:0">📏 Rubrik Penilaian</label>
+          <button class="btn btn-outline btn-sm" onclick="addRubricRow()">+ Tambah Kriteria</button>
+        </div>
+        <div style="background:var(--gray50);border-radius:8px;padding:12px;margin-bottom:4px">
+          <div style="display:grid;grid-template-columns:1fr 2fr 80px 28px;gap:8px;margin-bottom:6px">
+            <span style="font-size:11px;font-weight:700;color:var(--gray500)">KRITERIA</span>
+            <span style="font-size:11px;font-weight:700;color:var(--gray500)">DESKRIPSI</span>
+            <span style="font-size:11px;font-weight:700;color:var(--gray500)">SKOR MAX</span>
+            <span></span>
+          </div>
+          <div id="rubric-rows"></div>
+        </div>
+        <div style="font-size:12px;color:var(--gray400);margin-top:4px" id="rubric-total-info">Total skor: 0</div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:20px">
+        <button class="btn btn-blue" style="flex:1;justify-content:center" onclick="addQuestionToBuilder()">➕ Tambah ke Daftar</button>
+        <button class="btn btn-outline" onclick="clearBuilderForm()">🗑️ Bersihkan</button>
+      </div>
+    </div>
+
+    <!-- Question List Panel -->
+    <div class="builder-list">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <div style="font-weight:700;font-size:15px">Daftar Soal</div>
+          <div style="font-size:12.5px;color:var(--gray500)" id="bld-count">0 soal ditambahkan</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveAllQuestions()">💾 Simpan Semua</button>
+      </div>
+      <div id="bld-preview-list">
+        <div class="empty-state" style="padding:30px 10px"><div class="empty-icon" style="font-size:32px">📝</div><p>Tambahkan soal dari form kiri</p></div>
+      </div>
+
+      <div style="margin-top:20px;border-top:1px solid var(--gray100);padding-top:16px">
+        <div style="font-weight:700;font-size:14px;margin-bottom:12px">📋 Soal yang Sudah Ada</div>
+        <div id="existing-questions-list">${renderExistingQuestions()}</div>
+      </div>
+    </div>
+  </div>`;
+
+  // Init rubric with 2 rows
+  builderRubricRows=0;builderQuestions=[];
+  addRubricRow();addRubricRow();
+}
+
+function renderExistingQuestions(){
+  const all=db.quizzes;
+  if(!all.length)return'<p style="font-size:13px;color:var(--gray400)">Belum ada soal.</p>';
+  const byCourse={};
+  all.forEach(q=>{if(!byCourse[q.courseId])byCourse[q.courseId]=[];byCourse[q.courseId].push(q);});
+  return Object.entries(byCourse).map(([cid,qs])=>{
+    const cc=db.courses.find(x=>x.id===cid);
+    return `<div style="margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--gray500);margin-bottom:6px">${cc?.emoji||''} ${cc?.title||cid} (${qs.length} soal)</div>
+      ${qs.map(q=>`<div style="display:flex;align-items:start;gap:8px;padding:8px;border-radius:6px;border:1px solid var(--gray100);margin-bottom:4px">
+        <span style="font-size:10px;padding:2px 6px;border-radius:10px;font-weight:700;flex-shrink:0;margin-top:2px;${q.type==='pg'?'background:rgba(59,130,246,.1);color:var(--blue)':'background:rgba(139,92,246,.1);color:#7c3aed'}">${q.type==='pg'?'PG':'Esai'}</span>
+        <span style="font-size:12.5px;flex:1;line-height:1.4">${q.question.length>70?q.question.slice(0,70)+'...':q.question}</span>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red);padding:4px 6px;flex-shrink:0" onclick="deleteQuizQ('${q.id}')">🗑️</button>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+let currentQType='pg';
+function switchQType(type){
+  currentQType=type;
+  document.getElementById('btn-pg').classList.toggle('active',type==='pg');
+  document.getElementById('btn-esai').classList.toggle('active',type==='esai');
+  document.getElementById('pg-section').style.display=type==='pg'?'block':'none';
+  document.getElementById('esai-section').style.display=type==='esai'?'block':'none';
+}
+
+function addRubricRow(){
+  builderRubricRows++;
+  const rid='rr'+builderRubricRows;
+  const row=document.createElement('div');
+  row.className='rubric-row';row.id=rid;
+  row.innerHTML=`
+    <input class="form-input" id="${rid}-name" placeholder="Nama kriteria" style="padding:8px 10px;font-size:13px" oninput="updateRubricTotal()">
+    <input class="form-input" id="${rid}-desc" placeholder="Deskripsi penilaian" style="padding:8px 10px;font-size:13px">
+    <input class="form-input" id="${rid}-max" type="number" placeholder="100" min="0" style="padding:8px 10px;font-size:13px;text-align:center" oninput="updateRubricTotal()">
+    <button class="rubric-del" onclick="removeRubricRow('${rid}')">✕</button>`;
+  document.getElementById('rubric-rows').appendChild(row);
+  updateRubricTotal();
+}
+function removeRubricRow(rid){
+  document.getElementById(rid)?.remove();updateRubricTotal();
+}
+function updateRubricTotal(){
+  const rows=document.querySelectorAll('.rubric-row');
+  let total=0;
+  rows.forEach(r=>{total+=parseInt(r.querySelector('input[id$="-max"]')?.value)||0;});
+  const info=document.getElementById('rubric-total-info');
+  if(info)info.textContent='Total skor: '+total;
+}
+
+function getRubricData(){
+  const rows=document.querySelectorAll('.rubric-row');
+  const result=[];
+  rows.forEach(r=>{
+    const name=r.querySelector('input[id$="-name"]')?.value.trim();
+    const desc=r.querySelector('input[id$="-desc"]')?.value.trim();
+    const max=parseInt(r.querySelector('input[id$="-max"]')?.value)||0;
+    if(name)result.push({id:'r'+Date.now()+Math.random().toString(36).slice(2),criteria:name,desc,maxScore:max});
+  });
+  return result;
+}
+
+function addQuestionToBuilder(){
+  const q=document.getElementById('bld-question').value.trim();
+  if(!q){toast('Pertanyaan tidak boleh kosong!','error');return;}
+  const courseId=document.getElementById('bld-course').value;
+  if(currentQType==='pg'){
+    const a=document.getElementById('bld-a').value.trim();
+    const b=document.getElementById('bld-b').value.trim();
+    if(!a||!b){toast('Minimal isi Pilihan A dan B!','error');return;}
+    const opts=[a,b,document.getElementById('bld-c').value.trim(),document.getElementById('bld-d').value.trim()].filter(Boolean);
+    const ans=parseInt(document.getElementById('bld-answer').value);
+    builderQuestions.push({id:'q'+Date.now()+builderQuestions.length,courseId,type:'pg',question:q,options:opts,answer:ans});
+  } else {
+    const rubric=getRubricData();
+    if(!rubric.length){toast('Tambahkan minimal 1 kriteria rubrik!','error');return;}
+    builderQuestions.push({id:'q'+Date.now()+builderQuestions.length,courseId,type:'esai',question:q,rubric});
+  }
+  updateBuilderPreview();clearBuilderForm();
+  toast('Soal ditambahkan ke daftar ✓','success');
+}
+
+function updateBuilderPreview(){
+  document.getElementById('bld-count').textContent=builderQuestions.length+' soal ditambahkan';
+  const list=document.getElementById('bld-preview-list');
+  if(!builderQuestions.length){list.innerHTML='<div class="empty-state" style="padding:30px 10px"><div class="empty-icon" style="font-size:32px">📝</div><p>Tambahkan soal dari form kiri</p></div>';return;}
+  list.innerHTML=builderQuestions.map((q,i)=>{
+    const cc=db.courses.find(x=>x.id===q.courseId);
+    const extra=q.type==='pg'?`<span style="font-size:11px;color:var(--gray400)">${q.options.length} pilihan · Kunci: ${['A','B','C','D'][q.answer]}</span>`
+      :`<span style="font-size:11px;color:var(--gray400)">${q.rubric.length} kriteria · Max: ${q.rubric.reduce((s,r)=>s+r.maxScore,0)} poin</span>`;
+    return `<div class="q-preview">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700;${q.type==='pg'?'background:rgba(59,130,246,.1);color:var(--blue)':'background:rgba(139,92,246,.1);color:#7c3aed'}">${q.type==='pg'?'PG':'Esai'}</span>
+        <span style="font-size:11px;color:var(--gray400)">${cc?.title||''}</span>
+        <button onclick="removeFromBuilder(${i})" style="margin-left:auto;background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">✕</button>
+      </div>
+      <div class="q-preview-text">${i+1}. ${q.question.length>80?q.question.slice(0,80)+'...':q.question}</div>
+      ${extra}
+    </div>`;
+  }).join('');
+}
+
+function removeFromBuilder(i){builderQuestions.splice(i,1);updateBuilderPreview();}
+
+function clearBuilderForm(){
+  document.getElementById('bld-question').value='';
+  document.getElementById('bld-a').value='';document.getElementById('bld-b').value='';
+  document.getElementById('bld-c').value='';document.getElementById('bld-d').value='';
+  document.getElementById('bld-answer').value='0';
+  // Reset rubric
+  document.getElementById('rubric-rows').innerHTML='';
+  builderRubricRows=0;addRubricRow();addRubricRow();
+}
+
+function saveAllQuestions(){
+  if(!builderQuestions.length){toast('Tidak ada soal untuk disimpan!','error');return;}
+  db.quizzes.push(...builderQuestions);
+  saveDB();
+  const n=builderQuestions.length;
+  builderQuestions=[];
+  updateBuilderPreview();
+  toast(`${n} soal berhasil disimpan! 🎉`,'success');
+  // Refresh existing list
+  const el=document.getElementById('existing-questions-list');
+  if(el)el.innerHTML=renderExistingQuestions();
+}
+
+function deleteQuizQ(id){
+  if(!confirm('Hapus soal ini?'))return;
+  db.quizzes=db.quizzes.filter(q=>q.id!==id);saveDB();
+  const el=document.getElementById('existing-questions-list');
+  if(el)el.innerHTML=renderExistingQuestions();
+  toast('Soal dihapus.','success');
+}
+
+// ========== COURSE CRUD ==========
+function openAddCourse(){editCourseId=null;document.getElementById('modalCourseTitle').textContent='Tambah Kursus';['courseTitle','courseDesc'].forEach(id=>document.getElementById(id).value='');document.getElementById('courseEmoji').value='📚';openModal('addCourseModal');}
+function editCourse(id){const c=db.courses.find(x=>x.id===id);if(!c)return;editCourseId=id;document.getElementById('modalCourseTitle').textContent='Edit Kursus';document.getElementById('courseTitle').value=c.title;document.getElementById('courseDesc').value=c.desc;document.getElementById('courseEmoji').value=c.emoji;document.getElementById('courseCategory').value=c.category;document.getElementById('courseLevel').value=c.level;openModal('addCourseModal');}
+function saveCourse(){
+  const title=document.getElementById('courseTitle').value.trim();if(!title){toast('Judul wajib diisi!','error');return;}
+  if(editCourseId){const c=db.courses.find(x=>x.id===editCourseId);c.title=title;c.desc=document.getElementById('courseDesc').value;c.emoji=document.getElementById('courseEmoji').value||'📚';c.category=document.getElementById('courseCategory').value;c.level=document.getElementById('courseLevel').value;c.bg=document.getElementById('courseBg').value;toast('Kursus diperbarui!','success');}
+  else{db.courses.push({id:'c'+Date.now(),title,category:document.getElementById('courseCategory').value,level:document.getElementById('courseLevel').value,desc:document.getElementById('courseDesc').value,emoji:document.getElementById('courseEmoji').value||'📚',bg:document.getElementById('courseBg').value,status:'active'});toast('Kursus ditambahkan!','success');}
+  saveDB();closeModal('addCourseModal');renderAdmin(adminTab);
+}
+function deleteCourse(id){if(!confirm('Hapus kursus ini?'))return;db.courses=db.courses.filter(c=>c.id!==id);db.lessons=db.lessons.filter(l=>l.courseId!==id);db.quizzes=db.quizzes.filter(q=>q.courseId!==id);saveDB();toast('Kursus dihapus.','success');renderAdmin(adminTab);}
+function openAddLesson(){const sel=document.getElementById('lessonCourse');sel.innerHTML=db.courses.map(c=>`<option value="${c.id}">${c.title}</option>`).join('');['lessonModule','lessonTitle','lessonVideo','lessonContent'].forEach(id=>document.getElementById(id).value='');document.getElementById('lessonDuration').value='10';document.getElementById('lessonType').value='video';toggleLessonFields();openModal('addLessonModal');}
+function toggleLessonFields(){const t=document.getElementById('lessonType').value;document.getElementById('videoField').style.display=t==='video'?'block':'none';document.getElementById('textField').style.display=t==='text'?'block':'none';}
+function saveLesson(){const title=document.getElementById('lessonTitle').value.trim();if(!title){toast('Judul wajib!','error');return;}const type=document.getElementById('lessonType').value;const l={id:'l'+Date.now(),courseId:document.getElementById('lessonCourse').value,module:document.getElementById('lessonModule').value||'Pelajaran',title,type,duration:parseInt(document.getElementById('lessonDuration').value)||10};if(type==='video')l.video=document.getElementById('lessonVideo').value;if(type==='text')l.content=document.getElementById('lessonContent').value;db.lessons.push(l);saveDB();toast('Pelajaran ditambahkan!','success');closeModal('addLessonModal');renderAdmin(adminTab);}
+function deleteLesson(id){if(!confirm('Hapus pelajaran?'))return;db.lessons=db.lessons.filter(l=>l.id!==id);saveDB();renderAdmin(adminTab);toast('Dihapus.');}
+
+// ========== STUDENTS ==========
+function renderStudents(){
+  const students=db.users.filter(u=>u.role==='student');
+  document.getElementById('studentsTable').innerHTML=`<div style="font-weight:700;font-size:15px;margin-bottom:16px">Daftar Siswa (${students.length})</div>
+  <table class="table"><thead><tr><th>Siswa</th><th>Username</th><th>Kursus</th><th>Selesai</th></tr></thead>
+  <tbody>${students.map(u=>{
+    const enrolled=u.enrolled||[];const done=enrolled.filter(cid=>getProgressPctForUser(u,cid)===100).length;
+    return `<tr><td><div style="display:flex;align-items:center;gap:8px"><div class="user-avatar" style="width:32px;height:32px;font-size:12px">${u.avatar}</div>${u.name}</div></td><td style="color:var(--gray500)">${u.username}</td><td>${enrolled.length}</td><td><span style="color:var(--green);font-weight:700">${done}</span></td></tr>`;
+  }).join('')}</tbody></table>`;
+}
+
+// ========== SETTINGS ==========
+function renderSettings(){
+  const s=JSON.parse(localStorage.getItem('learnhub_settings')||'{}');
+  document.getElementById('set-name').value=s.name||'LearnHub';
+  document.getElementById('set-emoji').value=s.emoji||'🎓';
+  document.getElementById('set-tagline').value=s.tagline||'Platform belajar online Anda';
+  document.getElementById('set-accent').value=s.accent||'#f59e0b';
+  document.getElementById('set-accent-hex').value=s.accent||'#f59e0b';
+  document.getElementById('set-navy').value=s.navy||'#0f1f3d';
+  document.getElementById('set-navy-hex').value=s.navy||'#0f1f3d';
+  document.getElementById('set-accent').oninput=function(){document.getElementById('set-accent-hex').value=this.value;};
+  document.getElementById('set-navy').oninput=function(){document.getElementById('set-navy-hex').value=this.value;};
+  renderUserList();
+}
+function syncColor(which){const hex=document.getElementById('set-'+which+'-hex').value;if(/^#[0-9a-fA-F]{6}$/.test(hex))document.getElementById('set-'+which).value=hex;}
+function applyTheme(accent,navy){document.getElementById('set-accent').value=accent;document.getElementById('set-accent-hex').value=accent;document.getElementById('set-navy').value=navy;document.getElementById('set-navy-hex').value=navy;}
+function saveIdentity(){const s=JSON.parse(localStorage.getItem('learnhub_settings')||'{}');s.name=document.getElementById('set-name').value.trim()||'LearnHub';s.emoji=document.getElementById('set-emoji').value.trim()||'🎓';s.tagline=document.getElementById('set-tagline').value.trim()||'Platform belajar online Anda';localStorage.setItem('learnhub_settings',JSON.stringify(s));applySettings();toast('Identitas disimpan! ✓','success');}
+function saveTheme(){const s=JSON.parse(localStorage.getItem('learnhub_settings')||'{}');s.accent=document.getElementById('set-accent-hex').value||document.getElementById('set-accent').value;s.navy=document.getElementById('set-navy-hex').value||document.getElementById('set-navy').value;localStorage.setItem('learnhub_settings',JSON.stringify(s));applySettings();toast('Tema warna diterapkan! 🎨','success');}
+function applySettings(){
+  const s=JSON.parse(localStorage.getItem('learnhub_settings')||'{}');
+  if(s.accent){document.documentElement.style.setProperty('--accent',s.accent);document.documentElement.style.setProperty('--accent2',s.accent);document.documentElement.style.setProperty('--accent-dim',s.accent+'25');}
+  if(s.navy){document.documentElement.style.setProperty('--navy',s.navy);document.documentElement.style.setProperty('--navy2',s.navy);document.documentElement.style.setProperty('--navy3',s.navy);}
+  const logoEl=document.querySelector('#sidebarLogo');if(logoEl&&(s.name||s.emoji))logoEl.textContent=(s.emoji||'🎓')+' '+(s.name||'LearnHub');
+  const tagEl=document.querySelector('#sidebarTagline');if(tagEl&&s.tagline)tagEl.textContent=s.tagline;
+  document.title=(s.name||'LearnHub')+' LMS';
+  if(s.name)document.getElementById('loginName').textContent=s.name;
+  if(s.emoji)document.getElementById('loginEmoji').textContent=s.emoji;
+  if(s.tagline)document.getElementById('loginTagline').textContent=s.tagline;
+}
+function renderUserList(){
+  document.getElementById('userListSettings').innerHTML=db.users.map(u=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:8px;border:1px solid var(--gray100);margin-bottom:8px;background:var(--gray50)">
+      <div class="user-avatar" style="width:36px;height:36px;font-size:13px;background:${u.role==='admin'?'var(--red)':'var(--accent)'}">${u.avatar||u.name[0]}</div>
+      <div style="flex:1"><div style="font-weight:600;font-size:13.5px">${u.name}</div><div style="font-size:12px;color:var(--gray500)">@${u.username} · ${u.role==='admin'?'👑 Admin':'🎓 Siswa'}</div></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-outline btn-sm" onclick="editUserAccount('${u.id}')">✏️</button>
+        ${u.id!=='u1'?`<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteUserAccount('${u.id}')">🗑️</button>`:''}
+      </div>
+    </div>`).join('');
+}
+function showAddUser(){editUserId=null;document.getElementById('userFormTitle').textContent='Tambah Akun Baru';['uf-name','uf-username','uf-password'].forEach(id=>document.getElementById(id).value='');document.getElementById('uf-role').value='student';document.getElementById('userFormCard').style.display='block';}
+function editUserAccount(id){const u=db.users.find(x=>x.id===id);if(!u)return;editUserId=id;document.getElementById('userFormTitle').textContent='Edit: '+u.name;document.getElementById('uf-name').value=u.name;document.getElementById('uf-username').value=u.username;document.getElementById('uf-password').value=u.password;document.getElementById('uf-role').value=u.role;document.getElementById('userFormCard').style.display='block';}
+function saveUserAccount(){
+  const name=document.getElementById('uf-name').value.trim();const username=document.getElementById('uf-username').value.trim();const password=document.getElementById('uf-password').value.trim();const role=document.getElementById('uf-role').value;
+  if(!name||!username||!password){toast('Semua kolom wajib diisi!','error');return;}if(password.length<4){toast('Password minimal 4 karakter!','error');return;}
+  if(db.users.find(u=>u.username===username&&u.id!==editUserId)){toast('Username sudah dipakai!','error');return;}
+  if(editUserId){const u=db.users.find(x=>x.id===editUserId);u.name=name;u.username=username;u.password=password;u.role=role;u.avatar=name[0].toUpperCase();toast('Akun diperbarui! ✓','success');}
+  else{db.users.push({id:'u'+Date.now(),name,username,password,role,avatar:name[0].toUpperCase(),enrolled:[],progress:{}});toast('Akun baru ditambahkan! 🎉','success');}
+  saveDB();cancelUserForm();renderUserList();
+}
+function deleteUserAccount(id){if(id===currentUser?.id){toast('Tidak bisa hapus akun aktif!','error');return;}if(!confirm('Hapus akun ini?'))return;db.users=db.users.filter(u=>u.id!==id);saveDB();renderUserList();toast('Akun dihapus.');}
+function cancelUserForm(){editUserId=null;document.getElementById('userFormCard').style.display='none';}
+function resetAllData(){if(!confirm('PERINGATAN!\n\nSemua data akan dihapus. Lanjutkan?'))return;localStorage.removeItem('learnhub_db');localStorage.removeItem('learnhub_settings');toast('Data direset. Memuat ulang...','error');setTimeout(()=>location.reload(),1500);}
+
+// ========== INIT ==========
+loadDB();
+applySettings();
+</script>
+</body>
+</html>

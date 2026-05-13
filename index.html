@@ -205,8 +205,27 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--gray100);color:
     <div class="modal-header"><div class="modal-title" id="modalCourseTitle">Tambah Kursus</div><button class="modal-close" onclick="closeModal('addCourseModal')">✕</button></div>
     <div class="form-group"><label class="form-label">Judul Kursus *</label><input class="form-input" id="courseTitle" placeholder="Misal: Belajar Python dari Nol"></div>
     <div class="form-grid">
-      <div class="form-group"><label class="form-label">Kategori</label><select class="form-select" id="courseCategory"><option>Pemrograman</option><option>Desain</option><option>Bisnis</option><option>Marketing</option><option>Bahasa</option><option>Matematika</option></select></div>
-      <div class="form-group"><label class="form-label">Level</label><select class="form-select" id="courseLevel"><option>Pemula</option><option>Menengah</option><option>Lanjutan</option></select></div>
+      <div class="form-group">
+        <label class="form-label">Kategori <span style="color:var(--gray400);font-weight:400">(pilih atau ketik baru)</span></label>
+        <input class="form-input" id="courseCategory" list="cat-list" placeholder="Misal: Sains, Agama, Olahraga...">
+        <datalist id="cat-list">
+          <option>Pemrograman</option><option>Desain</option><option>Bisnis</option>
+          <option>Marketing</option><option>Bahasa</option><option>Matematika</option>
+          <option>Sains</option><option>Agama</option><option>Sejarah</option><option>Olahraga</option>
+        </datalist>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Level <span style="color:var(--gray400);font-weight:400">(pilih atau ketik baru)</span></label>
+        <input class="form-input" id="courseLevel" list="level-list" placeholder="Misal: Pemula, Kelas 7...">
+        <datalist id="level-list">
+          <option>Pemula</option><option>Menengah</option><option>Lanjutan</option>
+          <option>Kelas 1</option><option>Kelas 2</option><option>Kelas 3</option>
+          <option>Kelas 4</option><option>Kelas 5</option><option>Kelas 6</option>
+          <option>Kelas 7</option><option>Kelas 8</option><option>Kelas 9</option>
+          <option>Kelas 10</option><option>Kelas 11</option><option>Kelas 12</option>
+          <option>Semua Level</option>
+        </datalist>
+      </div>
     </div>
     <div class="form-group"><label class="form-label">Deskripsi</label><textarea class="form-textarea" id="courseDesc" placeholder="Deskripsi singkat kursus"></textarea></div>
     <div class="form-grid">
@@ -341,11 +360,41 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--gray100);color:
       <div style="max-width:700px">
         <div class="card" style="margin-bottom:20px">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px"><span style="font-size:22px">🏫</span><div><div style="font-weight:700;font-size:15px">Identitas Platform</div><div style="font-size:12.5px;color:var(--gray500)">Nama, logo, dan tagline</div></div></div>
+
+          <!-- Logo Section -->
+          <div class="form-group">
+            <label class="form-label">Logo Platform</label>
+            <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+              <!-- Preview -->
+              <div id="logo-preview-box" style="width:80px;height:80px;border-radius:14px;background:var(--navy);display:flex;align-items:center;justify-content:center;font-size:36px;flex-shrink:0;overflow:hidden;border:2px solid var(--gray200)">
+                <span id="logo-preview-emoji">🎓</span>
+              </div>
+              <div style="flex:1;min-width:200px">
+                <div style="display:flex;gap:4px;background:var(--gray100);padding:4px;border-radius:8px;margin-bottom:10px;width:fit-content">
+                  <button class="type-btn active" id="logo-tab-emoji" onclick="switchLogoTab('emoji')" style="padding:6px 14px;font-size:12.5px">😊 Emoji</button>
+                  <button class="type-btn" id="logo-tab-image" onclick="switchLogoTab('image')" style="padding:6px 14px;font-size:12.5px">🖼️ Gambar</button>
+                </div>
+                <div id="logo-emoji-section">
+                  <input class="form-input" id="set-emoji" placeholder="🎓" style="font-size:22px;letter-spacing:4px" oninput="previewLogo()">
+                  <div style="font-size:12px;color:var(--gray400);margin-top:6px">Ketik atau paste emoji apapun</div>
+                </div>
+                <div id="logo-image-section" style="display:none">
+                  <div onclick="document.getElementById('logo-file-input').click()" id="logo-dropzone" style="border:2px dashed var(--gray200);border-radius:8px;padding:16px;text-align:center;cursor:pointer;transition:.2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--gray200)'">
+                    <div style="font-size:24px;margin-bottom:4px">📁</div>
+                    <div style="font-size:13px;font-weight:600;color:var(--gray600)">Klik untuk pilih gambar</div>
+                    <div style="font-size:11.5px;color:var(--gray400);margin-top:2px">JPG, PNG, SVG · Maks 2MB</div>
+                  </div>
+                  <input type="file" id="logo-file-input" accept="image/*" style="display:none" onchange="handleLogoUpload(event)">
+                  <button class="btn btn-ghost btn-sm" id="logo-clear-btn" style="display:none;margin-top:6px;color:var(--red)" onclick="clearLogoImage()">✕ Hapus gambar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="form-grid">
             <div class="form-group"><label class="form-label">Nama Platform</label><input class="form-input" id="set-name" placeholder="LearnHub"></div>
-            <div class="form-group"><label class="form-label">Emoji / Logo</label><input class="form-input" id="set-emoji" placeholder="🎓"></div>
+            <div class="form-group"><label class="form-label">Tagline</label><input class="form-input" id="set-tagline" placeholder="Platform belajar online Anda"></div>
           </div>
-          <div class="form-group"><label class="form-label">Tagline</label><input class="form-input" id="set-tagline" placeholder="Platform belajar online Anda"></div>
           <button class="btn btn-primary" onclick="saveIdentity()">💾 Simpan Identitas</button>
         </div>
         <div class="card" style="margin-bottom:20px">
@@ -553,7 +602,14 @@ function courseCardHTML(c,enrolled,pct){
 }
 
 // ========== CATALOG ==========
-function renderCatalog(){filterCatalog();}
+function renderCatalog(){
+  // Rebuild filter options dynamically from existing courses
+  const cats=[...new Set(db.courses.map(c=>c.category).filter(Boolean))];
+  const sel=document.getElementById('catFilter');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">Semua Kategori</option>'+cats.map(c=>`<option${c===cur?' selected':''}>${c}</option>`).join('');
+  filterCatalog();
+}
 function filterCatalog(){
   const q=document.getElementById('searchInput').value.toLowerCase();
   const cat=document.getElementById('catFilter').value;
@@ -1153,21 +1209,111 @@ function renderSettings(){
   document.getElementById('set-navy-hex').value=s.navy||'#0f1f3d';
   document.getElementById('set-accent').oninput=function(){document.getElementById('set-accent-hex').value=this.value;};
   document.getElementById('set-navy').oninput=function(){document.getElementById('set-navy-hex').value=this.value;};
+  // Logo preview
+  if(s.logoImage){
+    switchLogoTab('image');
+    setLogoImagePreview(s.logoImage);
+  } else {
+    switchLogoTab('emoji');
+    document.getElementById('logo-preview-emoji').textContent=s.emoji||'🎓';
+    document.getElementById('logo-preview-emoji').style.display='';
+  }
   renderUserList();
+}
+
+let currentLogoTab='emoji';
+let logoImageData=null;
+
+function switchLogoTab(tab){
+  currentLogoTab=tab;
+  document.getElementById('logo-tab-emoji').classList.toggle('active',tab==='emoji');
+  document.getElementById('logo-tab-image').classList.toggle('active',tab==='image');
+  document.getElementById('logo-emoji-section').style.display=tab==='emoji'?'block':'none';
+  document.getElementById('logo-image-section').style.display=tab==='image'?'block':'none';
+}
+
+function previewLogo(){
+  const e=document.getElementById('set-emoji').value||'🎓';
+  const box=document.getElementById('logo-preview-box');
+  box.innerHTML=`<span id="logo-preview-emoji" style="font-size:36px">${e}</span>`;
+}
+
+function handleLogoUpload(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  if(file.size>2*1024*1024){toast('Ukuran file maksimal 2MB!','error');return;}
+  const reader=new FileReader();
+  reader.onload=function(e){
+    logoImageData=e.target.result;
+    setLogoImagePreview(logoImageData);
+    toast('Gambar logo dipilih ✓','success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function setLogoImagePreview(src){
+  const box=document.getElementById('logo-preview-box');
+  box.innerHTML=`<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`;
+  const btn=document.getElementById('logo-clear-btn');
+  if(btn)btn.style.display='inline-flex';
+  logoImageData=src;
+  // Update dropzone text
+  const dz=document.getElementById('logo-dropzone');
+  if(dz){dz.querySelector('div:nth-child(2)').textContent='Gambar terpilih ✓';dz.style.borderColor='var(--green)';}
+}
+
+function clearLogoImage(){
+  logoImageData=null;
+  const box=document.getElementById('logo-preview-box');
+  const s=JSON.parse(localStorage.getItem('learnhub_settings')||'{}');
+  box.innerHTML=`<span id="logo-preview-emoji" style="font-size:36px">${s.emoji||'🎓'}</span>`;
+  const btn=document.getElementById('logo-clear-btn');if(btn)btn.style.display='none';
+  document.getElementById('logo-file-input').value='';
+  const dz=document.getElementById('logo-dropzone');
+  if(dz){dz.querySelector('div:nth-child(2)').textContent='Klik untuk pilih gambar';dz.style.borderColor='var(--gray200)';}
+}
+
+function saveIdentity(){
+  const s=JSON.parse(localStorage.getItem('learnhub_settings')||'{}');
+  s.name=document.getElementById('set-name').value.trim()||'LearnHub';
+  s.tagline=document.getElementById('set-tagline').value.trim()||'Platform belajar online Anda';
+  if(currentLogoTab==='image'&&logoImageData){
+    s.logoImage=logoImageData;
+    delete s.emoji;
+  } else {
+    s.emoji=document.getElementById('set-emoji').value.trim()||'🎓';
+    delete s.logoImage;
+    logoImageData=null;
+  }
+  localStorage.setItem('learnhub_settings',JSON.stringify(s));
+  applySettings();
+  toast('Identitas disimpan! ✓','success');
 }
 function syncColor(which){const hex=document.getElementById('set-'+which+'-hex').value;if(/^#[0-9a-fA-F]{6}$/.test(hex))document.getElementById('set-'+which).value=hex;}
 function applyTheme(accent,navy){document.getElementById('set-accent').value=accent;document.getElementById('set-accent-hex').value=accent;document.getElementById('set-navy').value=navy;document.getElementById('set-navy-hex').value=navy;}
-function saveIdentity(){const s=JSON.parse(localStorage.getItem('learnhub_settings')||'{}');s.name=document.getElementById('set-name').value.trim()||'LearnHub';s.emoji=document.getElementById('set-emoji').value.trim()||'🎓';s.tagline=document.getElementById('set-tagline').value.trim()||'Platform belajar online Anda';localStorage.setItem('learnhub_settings',JSON.stringify(s));applySettings();toast('Identitas disimpan! ✓','success');}
 function saveTheme(){const s=JSON.parse(localStorage.getItem('learnhub_settings')||'{}');s.accent=document.getElementById('set-accent-hex').value||document.getElementById('set-accent').value;s.navy=document.getElementById('set-navy-hex').value||document.getElementById('set-navy').value;localStorage.setItem('learnhub_settings',JSON.stringify(s));applySettings();toast('Tema warna diterapkan! 🎨','success');}
 function applySettings(){
   const s=JSON.parse(localStorage.getItem('learnhub_settings')||'{}');
   if(s.accent){document.documentElement.style.setProperty('--accent',s.accent);document.documentElement.style.setProperty('--accent2',s.accent);document.documentElement.style.setProperty('--accent-dim',s.accent+'25');}
   if(s.navy){document.documentElement.style.setProperty('--navy',s.navy);document.documentElement.style.setProperty('--navy2',s.navy);document.documentElement.style.setProperty('--navy3',s.navy);}
-  const logoEl=document.querySelector('#sidebarLogo');if(logoEl&&(s.name||s.emoji))logoEl.textContent=(s.emoji||'🎓')+' '+(s.name||'LearnHub');
+  // Logo: image takes priority over emoji
+  const logoEl=document.querySelector('#sidebarLogo');
+  if(logoEl){
+    if(s.logoImage){
+      logoEl.innerHTML=`<img src="${s.logoImage}" style="height:32px;width:32px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px"> ${s.name||'LearnHub'}`;
+    } else {
+      logoEl.textContent=(s.emoji||'🎓')+' '+(s.name||'LearnHub');
+    }
+  }
   const tagEl=document.querySelector('#sidebarTagline');if(tagEl&&s.tagline)tagEl.textContent=s.tagline;
   document.title=(s.name||'LearnHub')+' LMS';
+  // Login screen
+  if(s.logoImage){
+    document.getElementById('loginEmoji').innerHTML=`<img src="${s.logoImage}" style="width:64px;height:64px;object-fit:cover;border-radius:12px;margin-bottom:4px">`;
+  } else {
+    document.getElementById('loginEmoji').textContent=s.emoji||'🎓';
+  }
   if(s.name)document.getElementById('loginName').textContent=s.name;
-  if(s.emoji)document.getElementById('loginEmoji').textContent=s.emoji;
   if(s.tagline)document.getElementById('loginTagline').textContent=s.tagline;
 }
 function renderUserList(){

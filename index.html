@@ -540,8 +540,11 @@ function doSync() {
     isSyncing = false;
     var changed = applyServerData(data);
     setSyncStatus('synced');
+    // Always re-apply platform settings (logo, theme, name) on every sync
+    if (data && data.platformSettings && Object.keys(data.platformSettings).length) {
+      applyPlatformSettings(data.platformSettings);
+    }
     if (changed && currentUser) {
-      showToast('Data diperbarui dari server', '');
       var skip = ['viewer','quiz','cert-editor','settings','account'];
       if (skip.indexOf(currentPage) === -1) refreshPage();
     }
@@ -663,6 +666,9 @@ function setupUserUI(user) {
   var extra = (isAdmin() && user.isGuru) ? ' + Guru' : '';
   document.getElementById('uRoleLbl').textContent = (rl[role()] || role()) + extra;
   renderSidebarNav();
+  // Apply platform settings AFTER sidebar is rendered so DOM elements exist
+  var ps = db.platformSettings || {};
+  if (Object.keys(ps).length) applyPlatformSettings(ps);
   navigate('dashboard');
 }
 
@@ -1717,7 +1723,19 @@ function renderDownload() {
   }
   var backup = '';
   if (isAdmin()) {
-    backup = '<div style="margin-top:18px"><div class="card" style="border:2px solid var(--accent);background:rgba(22,163,74,.04)"><div style="display:flex;align-items:center;gap:9px;margin-bottom:14px"><div style="font-size:22px">🔒</div><div><div style="font-weight:700;font-size:14px">Backup & Restore Data</div><div style="font-size:11.5px;color:var(--gray500)">Simpan semua data ke file JSON atau pulihkan dari backup</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:11px"><div><div style="font-weight:600;font-size:12.5px;margin-bottom:5px">Export Backup</div><div style="font-size:11.5px;color:var(--gray500);margin-bottom:9px">Download semua data ke file .json</div><button class="btn btn-primary btn-sm" onclick="doExport()">Download Backup</button></div><div><div style="font-weight:600;font-size:12.5px;margin-bottom:5px">Import / Restore</div><div style="font-size:11.5px;color:var(--gray500);margin-bottom:9px">Pulihkan dari file backup sebelumnya</div><button class="btn btn-outline btn-sm" onclick="document.getElementById(\'importFile\').click()">Pilih File Backup</button><input type="file" id="importFile" accept=".json" style="display:none" onchange="doImport(event)"></div></div><div style="margin-top:11px;padding:9px 13px;background:rgba(245,158,11,.1);border-radius:7px;font-size:11.5px;color:#92400e">Tips: Lakukan backup sebelum update file HTML ke GitHub. Jika data hilang, import kembali file backup.</div></div></div>';
+    backup = '<div style="margin-top:18px"><div class="card" style="border:2px solid var(--accent);background:rgba(22,163,74,.04)">'
+      + '<div style="display:flex;align-items:center;gap:9px;margin-bottom:14px"><div style="font-size:22px">&#128274;</div><div><div style="font-weight:700;font-size:14px">Backup &amp; Restore Data</div><div style="font-size:11.5px;color:var(--gray500)">Simpan semua data atau pulihkan dari backup</div></div></div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:14px">'
+      + '<div><div style="font-weight:600;font-size:12.5px;margin-bottom:5px">&#128229; Download Backup</div><div style="font-size:11.5px;color:var(--gray500);margin-bottom:9px">Download semua data ke file .json</div><button class="btn btn-primary btn-sm" onclick="doExport()">Download File .json</button></div>'
+      + '<div><div style="font-weight:600;font-size:12.5px;margin-bottom:5px">&#128194; Restore Backup</div><div style="font-size:11.5px;color:var(--gray500);margin-bottom:9px">Pulihkan dari file backup</div><button class="btn btn-outline btn-sm" onclick="document.getElementById(\'importFile\').click()">Pilih File Backup</button><input type="file" id="importFile" accept=".json" style="display:none" onchange="doImport(event)"></div>'
+      + '</div>'
+      + '<div style="border-top:1px solid rgba(22,163,74,.2);padding-top:13px">'
+      + '<div style="font-weight:600;font-size:12.5px;margin-bottom:5px">&#128231; Kirim Backup ke Email</div>'
+      + '<div style="font-size:11.5px;color:var(--gray500);margin-bottom:9px">Backup dikirim sebagai lampiran via email (menggunakan aplikasi email kamu)</div>'
+      + '<div style="display:flex;gap:8px;align-items:center"><input class="fi" id="backupEmail" type="email" placeholder="Masukkan alamat email tujuan" style="flex:1;padding:7px 10px;font-size:12.5px"><button class="btn btn-navy btn-sm" onclick="sendBackupEmail()">Kirim ke Email</button></div>'
+      + '</div>'
+      + '<div style="margin-top:11px;padding:9px 13px;background:rgba(245,158,11,.1);border-radius:7px;font-size:11.5px;color:#92400e">Tips: Lakukan backup sebelum update file HTML ke GitHub. Jika data hilang, import kembali file backup.</div>'
+      + '</div></div>';
   }
   document.getElementById('dlContent').innerHTML = '<div class="card" style="margin-bottom:18px"><div style="display:flex;align-items:center;gap:9px"><div style="font-size:22px">📥</div><div><div style="font-weight:700;font-size:14.5px">Download & Laporan</div><div style="font-size:12px;color:var(--gray500)">Unduh data dalam format CSV</div></div></div></div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:13px">' + cards + '</div>' + backup;
 }
@@ -1837,6 +1855,43 @@ function doExport() {
   a.download = 'backup_pkbm_' + dt + '.json';
   a.click();
   showToast('Backup didownload!', 'ok');
+}
+
+function sendBackupEmail() {
+  var emailEl = document.getElementById('backupEmail');
+  if (!emailEl || !emailEl.value.trim()) { showToast('Masukkan alamat email!', 'err'); return; }
+  var addr = emailEl.value.trim();
+  if (!addr.match(/^[^ @]+@[^ @]+[.][^ @]+$/i)) { showToast('Format email tidak valid!', 'err'); return; }
+
+  var dt = new Date().toLocaleDateString('id-ID');
+  var ps = {};
+  try { ps = JSON.parse(localStorage.getItem('pkbm_cert') || '{}'); } catch(e) {}
+  var backup = {
+    _meta: { app:'PKBM Zia Pradista LMS', exportedAt:new Date().toISOString() },
+    db: {
+      courses:db.courses, lessons:db.lessons, quizzes:db.quizzes,
+      users:db.users, notifications:db.notifications,
+      announcements:db.announcements, platformSettings:db.platformSettings
+    },
+    certSettings: ps
+  };
+  var stats = 'Kursus: ' + db.courses.length
+    + ', Pelajaran: ' + db.lessons.length
+    + ', Pengguna: ' + db.users.length
+    + ', Murid: ' + db.users.filter(function(u){return u.role==='murid';}).length
+    + ', Guru: ' + db.users.filter(function(u){return u.role==='guru';}).length;
+  var subj = encodeURIComponent('Backup PKBM Zia Pradista - ' + dt);
+  var bdy = encodeURIComponent('Backup PKBM Zia Pradista - ' + dt + ' | ' + stats + ' | File backup sudah didownload, lampirkan ke email ini. Dikirim oleh: ' + (currentUser ? currentUser.name : '-'));
+
+  var json = JSON.stringify(backup, null, 2);
+  var a = document.createElement('a');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+  a.download = 'backup_pkbm_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  setTimeout(function() {
+    window.location.href = 'mailto:' + addr + '?subject=' + subj + '&body=' + bdy;
+    showToast('File backup didownload. Lampirkan ke email yang terbuka!', 'ok');
+  }, 800);
 }
 
 function doImport(event) {

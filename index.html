@@ -189,8 +189,27 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--gray100);color:
 @media(max-width:1000px){.stats-grid{grid-template-columns:1fr 1fr}.courses-grid{grid-template-columns:1fr 1fr}.builder-layout{grid-template-columns:1fr}.viewer-layout{grid-template-columns:1fr}}
 @media(max-width:640px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.overlay.open{display:block}.mobile-toggle{display:block}.stats-grid{grid-template-columns:1fr 1fr}.courses-grid{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}}
 </style>
+
+<!-- Firebase CDN -->
+
+<style>
+#loadingOverlay{position:fixed;inset:0;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s}
+#loadingOverlay.hidden{opacity:0;pointer-events:none}
+.spinner{width:44px;height:44px;border:4px solid rgba(255,255,255,.15);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{color:rgba(255,255,255,.7);font-size:14px;font-weight:500}
+.loading-sub{color:rgba(255,255,255,.35);font-size:12px;margin-top:6px}
+</style>
 </head>
 <body>
+
+<!-- LOADING OVERLAY -->
+<div id="loadingOverlay">
+  <div style="font-size:36px;margin-bottom:12px">🎓</div>
+  <div class="spinner"></div>
+  <div class="loading-text">PKBM Zia Pradista</div>
+  <div class="loading-sub" id="loadingStatus">Menghubungkan ke server...</div>
+</div>
 
 <!-- LOGIN -->
 <div class="login-screen" id="loginScreen">
@@ -403,6 +422,9 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--gray100);color:
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script>
 // ===== DATA =====
 let db = {
@@ -446,11 +468,108 @@ let builderQuestions = [], builderRubricRows = 0, currentQType = 'pg';
 let manageTab = 'courses';
 let viewerBackPage = 'my-courses';
 
-function loadDB(){
-  const s = localStorage.getItem('pkbm_db');
-  if(s){const p=JSON.parse(s);['courses','lessons','quizzes','users'].forEach(k=>{if(p[k])db[k]=p[k];});}
+// ===== FIREBASE =====
+const firebaseConfig = {
+  apiKey: "AIzaSyBSIp_TfLkvOMBu9Ymc_qcpKIn70z4qQYw",
+  authDomain: "pkbm-zia-pradista.firebaseapp.com",
+  databaseURL: "https://pkbm-zia-pradista-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "pkbm-zia-pradista",
+  storageBucket: "pkbm-zia-pradista.firebasestorage.app",
+  messagingSenderId: "731708617140",
+  appId: "1:731708617140:web:3571b0fd2c2eb425c4c2e1"
+};
+firebase.initializeApp(firebaseConfig);
+const dbRef = firebase.database().ref('pkbm_data');
+
+let currentPage = 'dashboard';
+let firebaseReady = false;
+
+function showLoading(msg){ 
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+  if(msg) document.getElementById('loadingStatus').textContent = msg;
 }
-function saveDB(){ localStorage.setItem('pkbm_db', JSON.stringify(db)); }
+function hideLoading(){ 
+  document.getElementById('loadingOverlay').classList.add('hidden');
+}
+
+function loadDB(){
+  document.getElementById('loadingStatus').textContent = 'Menghubungkan dengan aman...';
+
+  // Step 1: Sign in anonymously (required by security rules)
+  firebase.auth().signInAnonymously()
+    .then(() => {
+      document.getElementById('loadingStatus').textContent = 'Mengambil data...';
+
+      // Step 2: Now we are authenticated, set up real-time listener
+      dbRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if(data){
+          db.courses  = data.courses  || db.courses;
+          db.lessons  = data.lessons  || db.lessons;
+          db.quizzes  = data.quizzes  || db.quizzes;
+          db.users    = data.users    || db.users;
+        } else {
+          // First time ever — push default data to Firebase
+          document.getElementById('loadingStatus').textContent = 'Menyiapkan data awal...';
+          saveDB();
+        }
+
+        if(!firebaseReady){
+          firebaseReady = true;
+          hideLoading();
+          applySettings();
+        } else {
+          // Update from another user — refresh page silently
+          if(currentUser){
+            const noRefreshPages = ['viewer','quiz','cert-editor','settings','my-account'];
+            if(!noRefreshPages.includes(currentPage)){
+              refreshCurrentPage();
+            } else {
+              toast('📡 Data diperbarui pengguna lain','');
+            }
+          }
+        }
+      }, (error) => {
+        console.error('Firebase read error:', error);
+        showError('Gagal membaca data: ' + error.message);
+      });
+    })
+    .catch((error) => {
+      console.error('Firebase auth error:', error);
+      showError('Gagal terhubung ke server: ' + error.message);
+    });
+}
+
+function showError(msg){
+  const el = document.getElementById('loadingStatus');
+  if(el) el.innerHTML = '<span style="color:#fca5a5">'+msg+'</span><br><button onclick="location.reload()" style="margin-top:12px;padding:8px 16px;background:var(--accent);color:white;border:none;border-radius:8px;cursor:pointer;font-size:13px">Coba Lagi</button>';
+}
+
+function saveDB(){
+  // Write to Firebase - will trigger onValue for all connected users
+  dbRef.set({
+    courses: db.courses,
+    lessons: db.lessons,
+    quizzes: db.quizzes,
+    users: db.users
+  }).catch(err => {
+    console.error('Save error:', err);
+    toast('Gagal menyimpan data: '+err.message,'err');
+  });
+}
+
+function refreshCurrentPage(){
+  const page = currentPage;
+  currentPage = page;
+  if(page==='dashboard') renderDashboard();
+  else if(page==='catalog') renderCatalog();
+  else if(page==='my-courses') renderMyCourses();
+  else if(page==='certificates') renderCerts();
+  else if(page==='manage-courses') renderManageCourses(manageTab);
+  else if(page==='students') renderStudents();
+  else if(page==='download') renderDownload();
+  else if(page==='users') renderUsers();
+}
 function getSettings(){ return JSON.parse(localStorage.getItem('pkbm_settings')||'{}'); }
 function getCertSettings(){ return Object.assign({title:'Sertifikat Penyelesaian',institution:'PKBM Zia Pradista',intro:'Diberikan kepada',desc:'yang telah menyelesaikan program belajar',signer:'',signerName:'',borderColor:'#1a3a5c',accentColor:'#16a34a',bg:'linear-gradient(135deg,#f0fdf4,#ffffff)'}, JSON.parse(localStorage.getItem('pkbm_cert')||'{}')); }
 
@@ -633,7 +752,8 @@ function renderDashboard(){
 function statCard(icon,bg,val,label){return `<div class="stat-card"><div class="stat-icon" style="background:${bg}">${icon}</div><div class="stat-value">${val}</div><div class="stat-label">${label}</div></div>`;}
 function courseCardHTML(c,enrolled,pct){
   if(!c)return'';
-  return `<div class="course-card" onclick="${enrolled?`navigate('viewer','${c.id}')`:`enrollCourse('${c.id}')`}">
+  const clickAct = enrolled ? "navigate('viewer','" + c.id + "')" : "enrollCourse('" + c.id + "')";
+  return `<div class="course-card" onclick="${clickAct}">
     <div class="course-thumb" style="background:${c.bg}">${c.emoji}${enrolled?`<div class="course-badge">${pct}%</div>`:''}
     </div><div class="course-body">
       <div class="course-tag">${c.category}</div>
@@ -672,7 +792,8 @@ function filterCatalog(){
   if(!list.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🔍</div><p>Tidak ada kursus ditemukan.</p></div>';return;}
   grid.innerHTML=list.map(c=>{
     const isEnr=enrolled.includes(c.id);const pct=getProgressPct(currentUser.id,c.id);
-    return `<div class="course-card" onclick="${isEnr?`navigate('viewer','${c.id}')`:`enrollCourse('${c.id}')`}">
+    const clickAct2 = isEnr ? "navigate('viewer','" + c.id + "')" : "enrollCourse('" + c.id + "')";
+    return `<div class="course-card" onclick="${clickAct2}">
       <div class="course-thumb" style="background:${c.bg}">${c.emoji}${isEnr?`<div class="course-badge">${pct}%</div>`:''}</div>
       <div class="course-body">
         <div class="course-tag">${c.category}</div>
@@ -893,7 +1014,9 @@ function calcEssay(qid){
 // ===== CERTS =====
 function buildCertHTML(name,courseTitle,emoji,s){
   const today=fmtDate();
-  const sign=s.signer||s.signerName?`<div style="margin-top:20px;border-top:1px solid rgba(0,0,0,.1);padding-top:14px;display:flex;justify-content:center"><div style="text-align:center;min-width:150px"><div style="height:36px"></div><div style="border-top:1.5px solid ${s.borderColor};padding-top:5px">${s.signerName?`<div style="font-weight:700;font-size:12.5px">${s.signerName}</div>`:''}${s.signer?`<div style="font-size:11.5px;color:#666">${s.signer}</div>`:''}</div></div></div>`:'';
+  const signerNameHtml = s.signerName ? '<div style="font-weight:700;font-size:12.5px">'+s.signerName+'</div>' : '';
+  const signerRoleHtml = s.signer ? '<div style="font-size:11.5px;color:#666">'+s.signer+'</div>' : '';
+  const sign = s.signer||s.signerName ? '<div style="margin-top:20px;border-top:1px solid rgba(0,0,0,.1);padding-top:14px;display:flex;justify-content:center"><div style="text-align:center;min-width:150px"><div style="height:36px"></div><div style="border-top:1.5px solid '+s.borderColor+';padding-top:5px">'+signerNameHtml+signerRoleHtml+'</div></div></div>' : '';
   return `<div style="border:7px solid ${s.borderColor};border-radius:4px;padding:32px;text-align:center;background:${s.bg};position:relative;overflow:hidden;font-family:'Plus Jakarta Sans',sans-serif">
     <div style="position:absolute;inset:12px;border:1.5px solid ${s.accentColor};pointer-events:none;border-radius:2px"></div>
     <div style="font-size:48px;margin-bottom:8px">${emoji}</div>
@@ -1154,7 +1277,7 @@ function updateBldPreview(){
       <button onclick="builderQuestions.splice(${i},1);updateBldPreview()" style="margin-left:auto;background:none;border:none;color:var(--red);cursor:pointer;font-size:13px">✕</button>
     </div>
     <div style="font-weight:600;font-size:13px">${i+1}. ${q.question.slice(0,70)}${q.question.length>70?'...':''}</div>
-    <div style="font-size:11px;color:var(--gray400);margin-top:4px">${q.type==='pg'?`${q.options.length} pilihan · Kunci: ${['A','B','C','D'][q.answer]}`:`${q.rubric.length} kriteria · Max: ${q.rubric.reduce((s,r)=>s+r.maxScore,0)} poin`}</div>
+    <div style="font-size:11px;color:var(--gray400);margin-top:4px">${q.type==='pg' ? (q.options.length+' pilihan · Kunci: '+['A','B','C','D'][q.answer]) : (q.rubric.length+' kriteria · Max: '+q.rubric.reduce((s,r)=>s+r.maxScore,0)+' poin')}</div>
     </div>`;
   }).join('');
 }
@@ -1319,6 +1442,35 @@ function renderDownload(){
     downloads.push({icon:'👤',bg:'rgba(239,68,68,.1)',title:'Data Semua Pengguna',desc:'Master data semua pengguna platform',action:"downloadUsersCSV()"});
     downloads.push({icon:'📋',bg:'#f0fdf4',title:'Laporan Lengkap Platform',desc:'Ringkasan lengkap seluruh data platform',action:"downloadFullReport()"});
   }
+  // Backup/restore always shown for admin
+  const backupSection = isAdmin() ? `
+  <div style="margin-top:20px">
+    <div class="card" style="border:2px solid var(--accent);background:rgba(22,163,74,.04)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="font-size:24px">🔒</div>
+        <div>
+          <div style="font-weight:700;font-size:15px">Backup & Restore Data</div>
+          <div style="font-size:12px;color:var(--gray500)">Simpan semua data platform ke file JSON, atau pulihkan dari backup sebelumnya</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <div style="font-weight:600;font-size:13px;margin-bottom:6px">📤 Export Backup</div>
+          <div style="font-size:12px;color:var(--gray500);margin-bottom:10px">Download semua data (kursus, pelajaran, soal, pengguna, pengaturan) ke file .json</div>
+          <button class="btn btn-primary btn-sm" onclick="exportBackup()">💾 Download Backup (.json)</button>
+        </div>
+        <div>
+          <div style="font-weight:600;font-size:13px;margin-bottom:6px">📥 Import / Restore</div>
+          <div style="font-size:12px;color:var(--gray500);margin-bottom:10px">Pulihkan data dari file backup .json yang pernah diexport sebelumnya</div>
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('importFile').click()">📂 Pilih File Backup</button>
+          <input type="file" id="importFile" accept=".json" style="display:none" onchange="importBackup(event)">
+        </div>
+      </div>
+      <div style="margin-top:12px;padding:10px 14px;background:rgba(245,158,11,.1);border-radius:8px;font-size:12px;color:#92400e">
+        💡 <strong>Tips:</strong> Lakukan backup setiap kali sebelum mengupdate file HTML ke GitHub. Jika data hilang, tinggal import file backup-nya kembali.
+      </div>
+    </div>
+  </div>` : '';
   el.innerHTML=`
   <div class="card" style="margin-bottom:20px">
     <div style="display:flex;align-items:center;gap:10px">
@@ -1333,7 +1485,8 @@ function renderDownload(){
       <div><div style="font-weight:700;font-size:13.5px">${d.title}</div><div style="font-size:12px;color:var(--gray500);margin-top:2px">${d.desc}</div></div>
       <div style="margin-left:auto;font-size:18px;color:var(--gray300)">↓</div>
     </div>`).join('')}
-  </div>`;
+  </div>
+  ${backupSection}`;
 }
 function downloadMyProgress(){
   const u=getUser();
@@ -1392,6 +1545,61 @@ function downloadFullReport(){
   rows.push(['Kursus','Kategori','Guru','Murid','Pelajaran','Selesaikan']);
   db.courses.forEach(c=>{const guru=db.users.find(u=>u.id===c.guruId);const muridList=db.users.filter(u=>u.role==='murid'&&(u.enrolled||[]).includes(c.id));const done=muridList.filter(u=>getProgressPct(u.id,c.id)===100).length;rows.push([c.title,c.category,guru?.name||'–',muridList.length,getLessons(c.id).length,done]);});
   downloadCSV('laporan_lengkap_pkbm.csv',[],rows);toast('Laporan diunduh!','ok');
+}
+
+// ===== BACKUP & RESTORE =====
+function exportBackup(){
+  const s = getSettings();
+  const certS = JSON.parse(localStorage.getItem('pkbm_cert')||'{}');
+  const backup = {
+    _meta: {
+      app: 'PKBM Zia Pradista LMS',
+      exportedAt: new Date().toISOString(),
+      version: '1.0'
+    },
+    db: {courses:db.courses, lessons:db.lessons, quizzes:db.quizzes, users:db.users},
+    settings: s,
+    certSettings: certS
+  };
+  const json = JSON.stringify(backup, null, 2);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+  a.download = `backup_pkbm_${date}.json`;
+  a.click();
+  toast('Backup berhasil didownload! Data tersimpan di Firebase ☁️','ok');
+}
+
+function importBackup(event){
+  const file = event.target.files[0];
+  if(!file){return;}
+  if(!file.name.endsWith('.json')){toast('File harus berformat .json!','err');return;}
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const backup = JSON.parse(e.target.result);
+      if(!backup.db || !backup.db.courses){toast('File backup tidak valid!','err');return;}
+      if(!confirm('⚠️ Import Backup\n\nSemua data saat ini akan DIGANTIKAN dengan data dari file backup.\n\nLanjutkan?'))return;
+      // Restore db
+      db.courses = backup.db.courses || db.courses;
+      db.lessons = backup.db.lessons || db.lessons;
+      db.quizzes = backup.db.quizzes || db.quizzes;
+      db.users = backup.db.users || db.users;
+      showLoading('Memulihkan data ke Firebase...');
+      saveDB(); // writes to Firebase, triggers real-time update for all users
+      // Restore settings
+      if(backup.settings) localStorage.setItem('pkbm_settings', JSON.stringify(backup.settings));
+      if(backup.certSettings) localStorage.setItem('pkbm_cert', JSON.stringify(backup.certSettings));
+      applySettings();
+      toast('✅ Data berhasil dipulihkan! Semua pengguna akan terupdate otomatis.','ok');
+      // Reset file input
+      document.getElementById('importFile').value='';
+      setTimeout(()=>{hideLoading();navigate('download');}, 1500);
+    } catch(err){
+      toast('Gagal membaca file backup: '+err.message,'err');
+    }
+  };
+  reader.readAsText(file);
 }
 
 // ===== USERS (master admin) =====
@@ -1577,7 +1785,7 @@ function applySettings(){
   if(s.logoImage){document.getElementById('loginLogoImg').innerHTML=`<img src="${s.logoImage}" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`;}
   else if(s.emoji)document.getElementById('loginLogoImg').textContent=s.emoji;
 }
-function resetAll(){if(!confirm('PERINGATAN!\n\nSemua data akan dihapus permanen. Lanjutkan?'))return;localStorage.clear();toast('Data direset. Memuat ulang...','err');setTimeout(()=>location.reload(),1500);}
+function resetAll(){if(!confirm('PERINGATAN!\n\nSemua data di Firebase dan browser akan dihapus permanen. Lanjutkan?'))return;showLoading('Menghapus data...');dbRef.remove().then(()=>{localStorage.clear();toast('Data direset. Memuat ulang...','err');setTimeout(()=>location.reload(),1500);}).catch(e=>toast('Error: '+e.message,'err'));}
 
 // ===== MY ACCOUNT =====
 function renderMyAccount(){
@@ -1613,6 +1821,6 @@ function saveMyAccount(){
 }
 
 // ===== INIT =====
+// applySettings runs after Firebase connects (inside loadDB listener)
 loadDB();
-applySettings();
 </script>

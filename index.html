@@ -348,6 +348,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--gray100);color:
     <div class="page" id="page-users"><div id="usersContent"></div></div>
     <div class="page" id="page-settings"><div id="settingsContent"></div></div>
     <div class="page" id="page-account"><div id="accountContent"></div></div>
+    <div class="page" id="page-notifications"><div id="notifContent"></div></div>
+    <div class="page" id="page-announcements"><div id="annContent"></div></div>
   </div>
 </div>
 
@@ -382,7 +384,10 @@ var defaultDB = {
     {id:'u3',name:'Ibu Sari, S.Pd',username:'guru2',password:'guru123',role:'guru',avatar:'S',enrolled:[],progress:{}},
     {id:'u4',name:'Ahmad Fauzi',username:'murid1',password:'murid123',role:'murid',avatar:'F',enrolled:['c1','c2'],progress:{'c1':{'l1':true},'c2':{}}},
     {id:'u5',name:'Dewi Rahayu',username:'murid2',password:'murid123',role:'murid',avatar:'D',enrolled:['c1'],progress:{'c1':{'l1':true,'l2':true}}}
-  ]
+  ],
+  notifications:[],
+  announcements:[],
+  platformSettings:{}
 };
 
 var db = JSON.parse(JSON.stringify(defaultDB));
@@ -506,16 +511,24 @@ function applyServerData(data) {
   var hash = JSON.stringify(data);
   if (hash === lastDbHash) return false;
   lastDbHash = hash;
-  db.courses = data.courses || db.courses;
-  db.lessons = data.lessons || db.lessons;
-  db.quizzes = data.quizzes || db.quizzes;
-  db.users   = data.users   || db.users;
-  // Update currentUser reference from fresh data
+  db.courses           = data.courses           || db.courses;
+  db.lessons           = data.lessons           || db.lessons;
+  db.quizzes           = data.quizzes           || db.quizzes;
+  db.users             = data.users             || db.users;
+  db.notifications     = data.notifications     || [];
+  db.announcements     = data.announcements     || [];
+  db.platformSettings  = data.platformSettings  || {};
   if (currentUser) {
     for (var i = 0; i < db.users.length; i++) {
       if (db.users[i].id === currentUser.id) { currentUser = db.users[i]; break; }
     }
   }
+  // Apply platform settings from Firebase to all devices
+  if (data.platformSettings && Object.keys(data.platformSettings).length) {
+    applyPlatformSettings(data.platformSettings);
+  }
+  // Update sidebar notification badge
+  updateNotifBadge();
   return true;
 }
 
@@ -570,6 +583,24 @@ function initFirebase() {
       firebaseReady = true;
       hideLoading();
       applySettings();
+      // Apply Firebase platformSettings
+      if (db.platformSettings && Object.keys(db.platformSettings).length) {
+        applyPlatformSettings(db.platformSettings);
+      }
+      // Auto-login if session saved
+      var savedUid = localStorage.getItem('pkbm_uid');
+      if (savedUid) {
+        var savedUser = null;
+        for (var i = 0; i < db.users.length; i++) {
+          if (db.users[i].id === savedUid) { savedUser = db.users[i]; break; }
+        }
+        if (savedUser) {
+          currentUser = savedUser;
+          setupUserUI(savedUser);
+          startPolling();
+          return;
+        }
+      }
       document.getElementById('loginScreen').style.display = 'flex';
       startPolling();
     })
@@ -581,16 +612,16 @@ function initFirebase() {
 function saveDB() {
   if (!firebaseReady) return;
   setSyncStatus('saving');
-  var payload = {courses:db.courses,lessons:db.lessons,quizzes:db.quizzes,users:db.users};
+  var payload = {
+    courses:db.courses, lessons:db.lessons,
+    quizzes:db.quizzes, users:db.users,
+    notifications:db.notifications||[],
+    announcements:db.announcements||[],
+    platformSettings:db.platformSettings||{}
+  };
   fbWrite(payload)
-    .then(function() {
-      lastDbHash = JSON.stringify(payload);
-      setSyncStatus('ok');
-    })
-    .catch(function(e) {
-      setSyncStatus('error');
-      showToast('Gagal simpan: ' + e.message, 'err');
-    });
+    .then(function() { lastDbHash = JSON.stringify(payload); setSyncStatus('ok'); })
+    .catch(function(e) { setSyncStatus('error'); showToast('Gagal simpan: '+e.message,'err'); });
 }
 
 function hideLoading() {
@@ -624,15 +655,7 @@ function canManage(c) { return isAdmin() || (isGuru() && c.guruId === currentUse
 function myCourses() { return db.courses.filter(function(c) { return canManage(c); }); }
 
 // ===== AUTH =====
-function doLogin() {
-  var u = document.getElementById('loginUser').value.trim();
-  var p = document.getElementById('loginPass').value.trim();
-  var user = null;
-  for (var i = 0; i < db.users.length; i++) {
-    if (db.users[i].username === u && db.users[i].password === p) { user = db.users[i]; break; }
-  }
-  if (!user) { showToast('Username atau password salah!', 'err'); return; }
-  currentUser = user;
+function setupUserUI(user) {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('uName2').textContent = user.name;
   document.getElementById('uAvatar').textContent = user.avatar || user.name[0];
@@ -643,8 +666,22 @@ function doLogin() {
   navigate('dashboard');
 }
 
+function doLogin() {
+  var u = document.getElementById('loginUser').value.trim();
+  var p = document.getElementById('loginPass').value.trim();
+  var user = null;
+  for (var i = 0; i < db.users.length; i++) {
+    if (db.users[i].username === u && db.users[i].password === p) { user = db.users[i]; break; }
+  }
+  if (!user) { showToast('Username atau password salah!', 'err'); return; }
+  currentUser = user;
+  localStorage.setItem('pkbm_uid', user.id);
+  setupUserUI(user);
+}
+
 function doLogout() {
   currentUser = null;
+  localStorage.removeItem('pkbm_uid');
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginUser').value = '';
   document.getElementById('loginPass').value = '';
@@ -655,6 +692,28 @@ document.getElementById('loginPass').addEventListener('keydown', function(e) { i
 document.getElementById('loginUser').addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
 
 // ===== SIDEBAR =====
+function unreadNotifCount() {
+  if (!isAdmin()) return 0;
+  var n = db.notifications || []; var cnt = 0;
+  for (var i = 0; i < n.length; i++) { if (!n[i].read) cnt++; }
+  return cnt;
+}
+function unreadAnnouncCount() {
+  var ann = db.announcements || []; var cnt = 0;
+  for (var i = 0; i < ann.length; i++) {
+    if (!isAnnouncForMe(ann[i])) continue;
+    var rb = ann[i].readBy || [];
+    if (currentUser && rb.indexOf(currentUser.id) === -1) cnt++;
+  }
+  return cnt;
+}
+function updateNotifBadge() {
+  var nb = document.getElementById('notifBadge');
+  var ab = document.getElementById('annBadge');
+  var nc = unreadNotifCount(); var ac = unreadAnnouncCount();
+  if (nb) { nb.textContent = nc; nb.style.display = nc > 0 ? 'inline' : 'none'; }
+  if (ab) { ab.textContent = ac; ab.style.display = ac > 0 ? 'inline' : 'none'; }
+}
 function renderSidebarNav() {
   var sections = [];
   var main = [
@@ -717,7 +776,8 @@ var pageTitles = {
   'viewer':'Lihat Materi','quiz':'Kuis','certificates':'Sertifikat',
   'manage':'Kelola Kursus','students':'Data Murid','student-detail':'Detail Murid',
   'cert-editor':'Template Sertifikat','download':'Download & Laporan',
-  'users':'Manajemen Pengguna','settings':'Pengaturan Platform','account':'Pengaturan Akun'
+  'users':'Manajemen Pengguna','settings':'Pengaturan Platform','account':'Pengaturan Akun',
+  'notifications':'Notifikasi','announcements':'Pengumuman'
 };
 
 function navigate(page, extra) {
@@ -946,6 +1006,8 @@ function enrollCourse(cid) {
   if (!u.progress) u.progress = {};
   u.progress[cid] = {};
   saveCurrentUser(u);
+  // Notify admin
+  addNotification('enroll', u.name + ' mendaftar kursus: ' + (db.courses.filter(function(x){return x.id===cid;})[0]||{}).title, {userId:u.id, courseId:cid});
   showToast('Berhasil mendaftar kursus!', 'ok');
   navigate('viewer', cid);
 }
@@ -1061,6 +1123,8 @@ function markDone() {
   document.getElementById('btnDone').textContent = 'Sudah Selesai';
   document.getElementById('btnDone').style.background = 'var(--green)';
   if (getProgPct(u.id, currentCourseId) === 100) {
+    var cName = (db.courses.filter(function(x){return x.id===currentCourseId;})[0]||{}).title||'';
+    addNotification('complete', u.name + ' menyelesaikan kursus: ' + cName, {userId:u.id, courseId:currentCourseId});
     setTimeout(function() { showToast('Kursus selesai! Sertifikat tersedia.', 'ok'); }, 600);
   }
 }
@@ -1928,38 +1992,40 @@ function handleLgUpload(e) {
 }
 
 function saveIdentity() {
-  var s = getSettings();
+  var ps = db.platformSettings || {};
   if (logoTab === 'image' && logoImageData) {
-    s.logoImage = logoImageData;
-    delete s.emoji;
+    ps.logoImage = logoImageData;
+    delete ps.emoji;
   } else {
     var emojiEl = document.getElementById('setEmoji');
-    s.emoji = emojiEl ? emojiEl.value : '🎓';
-    delete s.logoImage;
+    ps.emoji = emojiEl ? emojiEl.value : '🎓';
+    delete ps.logoImage;
     logoImageData = null;
   }
   var nameEl = document.getElementById('setName');
   var tagEl = document.getElementById('setTagline');
-  s.name = nameEl ? nameEl.value : 'PKBM Zia Pradista';
-  s.tagline = tagEl ? tagEl.value : 'Platform Belajar Online';
-  localStorage.setItem('pkbm_settings', JSON.stringify(s));
-  applySettings();
-  showToast('Identitas disimpan!', 'ok');
+  ps.name = nameEl ? nameEl.value : 'PKBM Zia Pradista';
+  ps.tagline = tagEl ? tagEl.value : 'Platform Belajar Online';
+  db.platformSettings = ps;
+  saveDB(); // saves to Firebase, all devices will get updated logo
+  applyPlatformSettings(ps);
+  showToast('Identitas disimpan! Semua perangkat akan terupdate.', 'ok');
 }
 
 function saveTheme() {
-  var s = getSettings();
+  var ps = db.platformSettings || {};
   var aEl = document.getElementById('setAccentHex');
   var nEl = document.getElementById('setNavyHex');
-  s.accent = aEl ? aEl.value : '#16a34a';
-  s.navy = nEl ? nEl.value : '#1a3a5c';
-  localStorage.setItem('pkbm_settings', JSON.stringify(s));
-  applySettings();
-  showToast('Tema diterapkan!', 'ok');
+  ps.accent = aEl ? aEl.value : '#16a34a';
+  ps.navy = nEl ? nEl.value : '#1a3a5c';
+  db.platformSettings = ps;
+  saveDB();
+  applyPlatformSettings(ps);
+  showToast('Tema diterapkan! Semua perangkat akan terupdate.', 'ok');
 }
 
-function applySettings() {
-  var s = getSettings();
+function applyPlatformSettings(s) {
+  if (!s) return;
   if (s.accent) {
     document.documentElement.style.setProperty('--accent', s.accent);
     document.documentElement.style.setProperty('--accent2', s.accent);
@@ -1971,20 +2037,21 @@ function applySettings() {
     if (s.logoImage) li.innerHTML = '<img src="' + s.logoImage + '" style="width:100%;height:100%;object-fit:cover">';
     else li.textContent = s.emoji || '🎓';
   }
-  var sn = document.getElementById('sName');
-  if (sn && s.name) sn.textContent = s.name;
-  var st = document.getElementById('sTagline');
-  if (st && s.tagline) st.textContent = s.tagline;
-  document.title = (s.name || 'PKBM Zia Pradista') + ' LMS';
-  var lln = document.getElementById('loginName');
-  if (lln && s.name) lln.textContent = s.name;
-  var llt = document.getElementById('loginTagline');
-  if (llt && s.tagline) llt.textContent = s.tagline;
-  var llw = document.getElementById('loginLogoWrap');
+  if (s.name) { var sn=document.getElementById('sName'); if(sn) sn.textContent=s.name; }
+  if (s.tagline) { var st=document.getElementById('sTagline'); if(st) st.textContent=s.tagline; }
+  if (s.name) document.title = s.name + ' LMS';
+  if (s.name) { var lln=document.getElementById('loginName'); if(lln) lln.textContent=s.name; }
+  if (s.tagline) { var llt=document.getElementById('loginTagline'); if(llt) llt.textContent=s.tagline; }
+  var llw=document.getElementById('loginLogoWrap');
   if (llw) {
-    if (s.logoImage) llw.innerHTML = '<img src="' + s.logoImage + '" style="width:100%;height:100%;object-fit:cover;border-radius:11px">';
+    if (s.logoImage) llw.innerHTML='<img src="'+s.logoImage+'" style="width:100%;height:100%;object-fit:cover;border-radius:11px">';
     else llw.textContent = s.emoji || '🎓';
   }
+}
+function applySettings() {
+  // Apply from Firebase platformSettings (if loaded), fallback to localStorage
+  var ps = (db.platformSettings && Object.keys(db.platformSettings).length) ? db.platformSettings : getSettings();
+  applyPlatformSettings(ps);
 }
 
 function doReset() {
@@ -2025,6 +2092,207 @@ function saveAccount() {
   document.getElementById('uName2').textContent = name;
   document.getElementById('uAvatar').textContent = u.avatar;
   showToast('Akun diperbarui!', 'ok');
+}
+
+// ===== NOTIFICATIONS =====
+function addNotification(type, message, data) {
+  if (!db.notifications) db.notifications = [];
+  db.notifications.unshift({
+    id: 'n' + Date.now(),
+    type: type,
+    message: message,
+    data: data || {},
+    createdAt: Date.now(),
+    read: false
+  });
+  // Keep max 50 notifications
+  if (db.notifications.length > 50) db.notifications = db.notifications.slice(0, 50);
+  saveDB();
+}
+
+function renderNotifications() {
+  var notifs = db.notifications || [];
+  var el = document.getElementById('notifContent');
+  // Mark all as read
+  var changed = false;
+  for (var i = 0; i < notifs.length; i++) { if (!notifs[i].read) { notifs[i].read = true; changed = true; } }
+  if (changed) { saveDB(); updateNotifBadge(); }
+
+  var typeIcon = {'enroll':'📚', 'complete':'🏆'};
+  var typeLabel = {'enroll':'Pendaftaran Kursus', 'complete':'Kursus Selesai'};
+  var html = '<div class="card" style="margin-bottom:16px"><div style="display:flex;align-items:center;justify-content:space-between"><div style="font-weight:700;font-size:15px">Notifikasi</div>';
+  if (notifs.length) html += '<button class="btn btn-outline btn-sm" onclick="clearAllNotif()">Hapus Semua</button>';
+  html += '</div></div>';
+  if (!notifs.length) {
+    html += '<div class="empty"><div class="empty-icon">🔔</div><p>Belum ada notifikasi.</p></div>';
+  } else {
+    for (var i = 0; i < notifs.length; i++) {
+      var n = notifs[i];
+      var icon = typeIcon[n.type] || '🔔';
+      var lbl = typeLabel[n.type] || 'Info';
+      var timeStr = new Date(n.createdAt).toLocaleString('id-ID');
+      var actionBtn = '';
+      if (n.data && n.data.userId) {
+        actionBtn = '<button class="btn btn-outline btn-xs" style="margin-top:8px" onclick="showDetail(\"' + n.data.userId + '\")">Lihat Detail Murid</button>';
+      }
+      html += '<div class="card" style="margin-bottom:10px;border-left:4px solid var(--accent)"><div style="display:flex;align-items:start;gap:12px"><div style="font-size:24px">' + icon + '</div><div style="flex:1"><div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:3px">' + lbl + '</div><div style="font-size:13.5px;font-weight:600">' + n.message + '</div><div style="font-size:11px;color:var(--gray400);margin-top:4px">' + timeStr + '</div>' + actionBtn + '</div></div></div>';
+    }
+  }
+  el.innerHTML = html;
+}
+
+function clearAllNotif() {
+  if (!confirm('Hapus semua notifikasi?')) return;
+  db.notifications = [];
+  saveDB();
+  renderNotifications();
+}
+
+// ===== ANNOUNCEMENTS =====
+function isAnnouncForMe(ann) {
+  if (!currentUser) return false;
+  if (ann.target === 'all') return true;
+  if (ann.target === 'murid' && isMurid()) return true;
+  if (ann.target === 'guru' && (isGuru() || isAdmin())) return true;
+  if (ann.target === 'admin' && isAdmin()) return true;
+  // target is a courseId - for murid enrolled in that course or guru who owns it
+  if (isMurid() && currentUser.enrolled && currentUser.enrolled.indexOf(ann.target) !== -1) return true;
+  if (isGuru() || isAdmin()) {
+    for (var i = 0; i < db.courses.length; i++) {
+      if (db.courses[i].id === ann.target && db.courses[i].guruId === currentUser.id) return true;
+    }
+    // Admin sees all
+    if (isAdmin()) return true;
+  }
+  return false;
+}
+
+function renderAnnouncements() {
+  var el = document.getElementById('annContent');
+  var myAnns = (db.announcements || []).filter(isAnnouncForMe);
+  var canCreate = isGuru() || isAdmin();
+  var mc = canCreate ? myCourses() : [];
+
+  // Mark visible announcements as read
+  var changed2 = false;
+  for (var i = 0; i < myAnns.length; i++) {
+    if (!myAnns[i].readBy) myAnns[i].readBy = [];
+    if (currentUser && myAnns[i].readBy.indexOf(currentUser.id) === -1) {
+      for (var j = 0; j < db.announcements.length; j++) {
+        if (db.announcements[j].id === myAnns[i].id) {
+          if (!db.announcements[j].readBy) db.announcements[j].readBy = [];
+          db.announcements[j].readBy.push(currentUser.id);
+          changed2 = true; break;
+        }
+      }
+    }
+  }
+  if (changed2) { saveDB(); updateNotifBadge(); }
+
+  var createBtn = canCreate ? '<button class="btn btn-primary" onclick="showCreateAnn()">+ Buat Pengumuman</button>' : '';
+  var html = '<div class="card" style="margin-bottom:16px"><div style="display:flex;align-items:center;justify-content:space-between"><div><div style="font-weight:700;font-size:15px">Pengumuman</div><div style="font-size:12px;color:var(--gray500);margin-top:2px">Informasi dan pengumuman penting</div></div>' + createBtn + '</div></div>';
+
+  if (canCreate) {
+    var targetOpts = '<option value="all">Semua Pengguna</option><option value="murid">Semua Murid</option>';
+    if (isAdmin()) targetOpts += '<option value="guru">Semua Guru</option>';
+    for (var i = 0; i < mc.length; i++) {
+      targetOpts += '<option value="' + mc[i].id + '">' + mc[i].emoji + ' Murid: ' + mc[i].title + '</option>';
+    }
+    html += '<div class="card" id="annForm" style="display:none;margin-bottom:16px;border:2px solid var(--accent)">';
+    html += '<div style="font-weight:700;font-size:14px;margin-bottom:14px">Buat Pengumuman Baru</div>';
+    html += '<div class="fg"><label class="fl">Judul</label><input class="fi" id="annTitle" placeholder="Judul pengumuman"></div>';
+    html += '<div class="fg"><label class="fl">Isi Pengumuman</label><textarea class="fta" id="annBody" style="min-height:100px" placeholder="Tulis isi pengumuman..."></textarea></div>';
+    html += '<div class="fg"><label class="fl">Kirim Kepada</label><select class="fsl" id="annTarget">' + targetOpts + '</select></div>';
+    html += '<div style="display:flex;gap:8px">';
+    html += '<button class="btn btn-primary btn-sm" onclick="submitAnn()">Kirim Pengumuman</button>';
+    html += '<button class="btn btn-outline btn-sm" onclick="hideAnnForm()">Batal</button>';
+    html += '</div></div>';
+  }
+
+  if (!myAnns.length) {
+    html += '<div class="empty"><div class="empty-icon">📢</div><p>Belum ada pengumuman.</p></div>';
+  } else {
+    for (var i = 0; i < myAnns.length; i++) {
+      var ann = myAnns[i];
+      var readBy = ann.readBy || [];
+      var isRead = currentUser && readBy.indexOf(currentUser.id) !== -1;
+      var author = null;
+      for (var j = 0; j < db.users.length; j++) { if (db.users[j].id === ann.authorId) { author = db.users[j]; break; } }
+      var targetLabel = {all:'Semua Pengguna', murid:'Semua Murid', guru:'Semua Guru'};
+      var tgt = targetLabel[ann.target];
+      if (!tgt) {
+        var tc = null;
+        for (var j = 0; j < db.courses.length; j++) { if (db.courses[j].id === ann.target) { tc = db.courses[j]; break; } }
+        tgt = tc ? ('Murid: ' + tc.title) : ann.target;
+      }
+      var timeStr = new Date(ann.createdAt).toLocaleString('id-ID');
+      var borderStyle = isRead ? 'border-left:4px solid var(--gray200)' : 'border-left:4px solid var(--accent)';
+      var dot = isRead ? '' : '<span style="width:7px;height:7px;border-radius:50%;background:var(--red);display:inline-block;margin-left:6px"></span>';
+      var canDel = (currentUser && ann.authorId === currentUser.id) || isAdmin();
+      var delBtn = canDel ? '<button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="deleteAnn(\"' + ann.id + '\")">Hapus</button>' : '';
+      html += '<div class="card" style="margin-bottom:10px;' + borderStyle + '">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">';
+      html += '<div style="display:flex;align-items:center;gap:5px"><span style="font-size:10.5px;font-weight:700;color:var(--accent)">' + tgt + '</span>' + dot + '</div>' + delBtn;
+      html += '</div>';
+      html += '<div style="font-weight:700;font-size:14.5px;margin-bottom:6px">' + ann.title + '</div>';
+      html += '<div style="font-size:13.5px;color:var(--gray700);line-height:1.65;white-space:pre-wrap">' + ann.content + '</div>';
+      html += '<div style="margin-top:9px;font-size:11px;color:var(--gray400)">Dari: ' + (author ? author.name : '?') + ' &bull; ' + timeStr + '</div>';
+      html += '</div>';
+    }
+  }
+  el.innerHTML = html;
+}
+
+
+function showCreateAnn() {
+  var f = document.getElementById('annForm');
+  if (f) { f.style.display = f.style.display === 'none' ? 'block' : 'none'; }
+}
+
+function hideAnnForm() { var f=document.getElementById('annForm'); if(f) f.style.display='none'; }
+function submitAnn() {
+  var title = document.getElementById('annTitle').value.trim();
+  var body = document.getElementById('annBody').value.trim();
+  var target = document.getElementById('annTarget').value;
+  if (!title || !body) { showToast('Judul dan isi wajib diisi!', 'err'); return; }
+  if (!db.announcements) db.announcements = [];
+  db.announcements.unshift({
+    id: 'a' + Date.now(),
+    title: title,
+    content: body,
+    authorId: currentUser.id,
+    target: target,
+    createdAt: Date.now(),
+    readBy: [currentUser.id]
+  });
+  saveDB();
+  showToast('Pengumuman berhasil dikirim!', 'ok');
+  document.getElementById('annTitle').value = '';
+  document.getElementById('annBody').value = '';
+  var f = document.getElementById('annForm');
+  if (f) f.style.display = 'none';
+  renderAnnouncements();
+}
+
+function deleteAnn(id) {
+  if (!confirm('Hapus pengumuman ini?')) return;
+  db.announcements = db.announcements.filter(function(a) { return a.id !== id; });
+  saveDB();
+  renderAnnouncements();
+}
+
+function markAnnRead(id) {
+  for (var j = 0; j < db.announcements.length; j++) {
+    if (db.announcements[j].id === id) {
+      if (!db.announcements[j].readBy) db.announcements[j].readBy = [];
+      if (currentUser && db.announcements[j].readBy.indexOf(currentUser.id) === -1) {
+        db.announcements[j].readBy.push(currentUser.id);
+        saveDB();
+        updateNotifBadge();
+      }
+      break;
+    }
+  }
 }
 
 // ===== INIT =====

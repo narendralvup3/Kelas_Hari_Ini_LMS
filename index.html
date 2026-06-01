@@ -306,6 +306,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--gray100);color:
       <div class="tb-title" id="pageTitle">Dashboard</div>
     </div>
     <div style="display:flex;align-items:center;gap:9px">
+      <span id="syncStatus" style="font-size:11.5px;font-weight:600"></span>
+      <button class="btn btn-outline btn-sm" onclick="doSync()" title="Sinkronisasi sekarang" style="padding:5px 8px">&#x21bb;</button>
       <span id="topChip" class="chip"></span>
       <button class="btn btn-outline btn-sm" onclick="doLogout()" style="color:var(--red);border-color:rgba(239,68,68,.3)">Keluar</button>
     </div>
@@ -401,131 +403,167 @@ var logoImageData = null;
 var logoTab = 'emoji';
 var firebaseReady = false;
 
-// ===== FIREBASE REST API (no SDK needed) =====
+// ===== FIREBASE REST API =====
 var FB_DB  = 'https://pkbm-zia-pradista-default-rtdb.asia-southeast1.firebasedatabase.app';
 var FB_KEY = 'AIzaSyBSIp_TfLkvOMBu9Ymc_qcpKIn70z4qQYw';
 var fbToken = null;
 var fbRefresh = null;
 var fbTokenExpiry = 0;
+var lastDbHash = '';
+var syncTimer = null;
+var isSyncing = false;
 
-// ===== FIREBASE REST AUTH =====
-function fbGetToken() {
-  // If token still valid, return it
-  if (fbToken && Date.now() < fbTokenExpiry) {
-    return Promise.resolve(fbToken);
-  }
-  // Try refresh token first
-  var saved = localStorage.getItem('pkbm_fb_rt');
-  if (saved) fbRefresh = saved;
-  if (fbRefresh) {
-    return fetch('https://securetoken.googleapis.com/v1/token?key=' + FB_KEY, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({grant_type:'refresh_token', refresh_token:fbRefresh})
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (d.id_token) {
-        fbToken = d.id_token;
-        fbRefresh = d.refresh_token;
-        fbTokenExpiry = Date.now() + (parseInt(d.expires_in) - 120) * 1000;
-        localStorage.setItem('pkbm_fb_rt', fbRefresh);
-        return fbToken;
-      }
-      return fbNewAnonToken();
-    })
-    .catch(function() { return fbNewAnonToken(); });
-  }
-  return fbNewAnonToken();
-}
-
+// ── Auth ──
 function fbNewAnonToken() {
   return fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + FB_KEY, {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({returnSecureToken: true})
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({returnSecureToken:true})
   })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    if (!d.idToken) throw new Error('Auth gagal: ' + JSON.stringify(d));
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if (!d.idToken) throw new Error('Anonymous auth gagal. Pastikan Anonymous Auth diaktifkan di Firebase Console.');
     fbToken = d.idToken;
     fbRefresh = d.refreshToken;
-    fbTokenExpiry = Date.now() + (parseInt(d.expiresIn) - 120) * 1000;
+    fbTokenExpiry = Date.now() + (parseInt(d.expiresIn||3600) - 300) * 1000;
     localStorage.setItem('pkbm_fb_rt', fbRefresh);
     return fbToken;
   });
 }
 
-function fbRead() {
+function fbRefreshToken(rt) {
+  return fetch('https://securetoken.googleapis.com/v1/token?key=' + FB_KEY, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({grant_type:'refresh_token', refresh_token:rt})
+  })
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if (!d.id_token) throw new Error('Refresh gagal');
+    fbToken = d.id_token;
+    fbRefresh = d.refresh_token;
+    fbTokenExpiry = Date.now() + (parseInt(d.expires_in||3600) - 300) * 1000;
+    localStorage.setItem('pkbm_fb_rt', fbRefresh);
+    return fbToken;
+  });
+}
+
+function fbGetToken() {
+  if (fbToken && Date.now() < fbTokenExpiry) return Promise.resolve(fbToken);
+  var saved = localStorage.getItem('pkbm_fb_rt');
+  if (saved || fbRefresh) {
+    var rt = saved || fbRefresh;
+    return fbRefreshToken(rt).catch(function() { return fbNewAnonToken(); });
+  }
+  return fbNewAnonToken();
+}
+
+// ── Read / Write / Delete ──
+function fbRequest(path, opts) {
   return fbGetToken().then(function(token) {
-    return fetch(FB_DB + '/pkbm_data.json?auth=' + token);
+    var url = FB_DB + path + '?auth=' + token;
+    return fetch(url, opts || {});
   }).then(function(r) {
-    if (!r.ok) throw new Error('HTTP ' + r.status);
+    if (r.status === 401 || r.status === 403) {
+      // Token might be stale - clear and retry once
+      fbToken = null;
+      fbTokenExpiry = 0;
+      return fbGetToken().then(function(token) {
+        var url = FB_DB + path + '?auth=' + token;
+        return fetch(url, opts || {});
+      });
+    }
+    return r;
+  }).then(function(r) {
+    if (!r.ok && r.status !== 204) throw new Error('HTTP ' + r.status);
+    if (r.status === 204) return null;
     return r.json();
   });
 }
 
+function fbRead()   { return fbRequest('/pkbm_data.json'); }
+function fbDelete() { return fbRequest('/pkbm_data.json', {method:'DELETE'}); }
 function fbWrite(data) {
-  return fbGetToken().then(function(token) {
-    return fetch(FB_DB + '/pkbm_data.json?auth=' + token, {
-      method: 'PUT',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(data)
-    });
-  }).then(function(r) {
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
+  return fbRequest('/pkbm_data.json', {
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(data)
   });
 }
 
-function fbDelete() {
-  return fbGetToken().then(function(token) {
-    return fetch(FB_DB + '/pkbm_data.json?auth=' + token, {method:'DELETE'});
-  });
+// ── Sync status UI ──
+function setSyncStatus(status) {
+  var el = document.getElementById('syncStatus');
+  if (!el) return;
+  if (status === 'saving')  { el.textContent = '⏳ Menyimpan...'; el.style.color = '#f59e0b'; }
+  if (status === 'ok')      { el.textContent = '✓ Tersimpan'; el.style.color = 'var(--green)'; setTimeout(function(){el.textContent='';},3000); }
+  if (status === 'error')   { el.textContent = '✗ Gagal simpan'; el.style.color = 'var(--red)'; }
+  if (status === 'syncing') { el.textContent = '🔄 Sinkronisasi...'; el.style.color = '#94a3b8'; }
+  if (status === 'synced')  { el.textContent = ''; }
 }
 
-// ===== POLLING for real-time sync =====
-var lastDbHash = '';
-function startPolling() {
-  setInterval(function() {
-    if (!currentUser || !firebaseReady) return;
-    fbRead().then(function(data) {
-      if (!data || !data.courses) return;
-      var hash = JSON.stringify(data);
-      if (hash === lastDbHash) return; // no change
-      lastDbHash = hash;
-      db.courses  = data.courses  || db.courses;
-      db.lessons  = data.lessons  || db.lessons;
-      db.quizzes  = data.quizzes  || db.quizzes;
-      db.users    = data.users    || db.users;
+// ── Polling ──
+function applyServerData(data) {
+  if (!data || !data.courses) return false;
+  var hash = JSON.stringify(data);
+  if (hash === lastDbHash) return false;
+  lastDbHash = hash;
+  db.courses = data.courses || db.courses;
+  db.lessons = data.lessons || db.lessons;
+  db.quizzes = data.quizzes || db.quizzes;
+  db.users   = data.users   || db.users;
+  // Update currentUser reference from fresh data
+  if (currentUser) {
+    for (var i = 0; i < db.users.length; i++) {
+      if (db.users[i].id === currentUser.id) { currentUser = db.users[i]; break; }
+    }
+  }
+  return true;
+}
+
+function doSync() {
+  if (isSyncing) return;
+  isSyncing = true;
+  setSyncStatus('syncing');
+  fbRead().then(function(data) {
+    isSyncing = false;
+    var changed = applyServerData(data);
+    setSyncStatus('synced');
+    if (changed && currentUser) {
+      showToast('Data diperbarui dari server', '');
       var skip = ['viewer','quiz','cert-editor','settings','account'];
-      if (skip.indexOf(currentPage) === -1) {
-        refreshPage();
-      } else {
-        showToast('Data diperbarui', '');
-      }
-    }).catch(function() {}); // silently ignore poll errors
-  }, 15000); // poll every 15 seconds
+      if (skip.indexOf(currentPage) === -1) refreshPage();
+    }
+  }).catch(function() {
+    isSyncing = false;
+    setSyncStatus('synced');
+  });
 }
 
+function startPolling() {
+  if (syncTimer) clearInterval(syncTimer);
+  syncTimer = setInterval(function() {
+    if (!currentUser || !firebaseReady) return;
+    doSync();
+  }, 5000); // every 5 seconds
+}
+
+// ── Init ──
 function initFirebase() {
-  document.getElementById('loadingStatus').textContent = 'Menghubungkan ke server...';
+  var st = document.getElementById('loadingStatus');
+  if (st) st.textContent = 'Menghubungkan ke server...';
   fbGetToken()
     .then(function() {
-      document.getElementById('loadingStatus').textContent = 'Mengambil data...';
+      if (st) st.textContent = 'Mengambil data...';
       return fbRead();
     })
     .then(function(data) {
       if (data && data.courses) {
-        db.courses  = data.courses  || defaultDB.courses;
-        db.lessons  = data.lessons  || defaultDB.lessons;
-        db.quizzes  = data.quizzes  || defaultDB.quizzes;
-        db.users    = data.users    || defaultDB.users;
-        lastDbHash  = JSON.stringify(data);
+        applyServerData(data);
       } else {
-        // First time - push default data
-        document.getElementById('loadingStatus').textContent = 'Menyiapkan data awal...';
-        return fbWrite({courses:db.courses,lessons:db.lessons,quizzes:db.quizzes,users:db.users});
+        if (st) st.textContent = 'Menyiapkan data awal...';
+        return fbWrite({courses:db.courses,lessons:db.lessons,quizzes:db.quizzes,users:db.users})
+          .then(function() {
+            lastDbHash = JSON.stringify({courses:db.courses,lessons:db.lessons,quizzes:db.quizzes,users:db.users});
+          });
       }
     })
     .then(function() {
@@ -536,17 +574,23 @@ function initFirebase() {
       startPolling();
     })
     .catch(function(err) {
-      showLoadErr('Gagal terhubung: ' + err.message);
+      showLoadErr(err.message || 'Gagal terhubung ke Firebase');
     });
 }
 
 function saveDB() {
   if (!firebaseReady) return;
-  fbWrite({courses:db.courses,lessons:db.lessons,quizzes:db.quizzes,users:db.users})
+  setSyncStatus('saving');
+  var payload = {courses:db.courses,lessons:db.lessons,quizzes:db.quizzes,users:db.users};
+  fbWrite(payload)
     .then(function() {
-      lastDbHash = JSON.stringify({courses:db.courses,lessons:db.lessons,quizzes:db.quizzes,users:db.users});
+      lastDbHash = JSON.stringify(payload);
+      setSyncStatus('ok');
     })
-    .catch(function(e) { showToast('Gagal simpan: ' + e.message, 'err'); });
+    .catch(function(e) {
+      setSyncStatus('error');
+      showToast('Gagal simpan: ' + e.message, 'err');
+    });
 }
 
 function hideLoading() {
@@ -1944,9 +1988,11 @@ function applySettings() {
 }
 
 function doReset() {
-  if (!confirm('PERINGATAN!\n\nSemua data akan dihapus permanen. Lanjutkan?')) return;
+  if (!confirm('PERINGATAN!\n\nSemua data di Firebase dan semua perangkat akan dihapus. Lanjutkan?')) return;
   fbDelete().then(function() {
-    localStorage.clear();
+    localStorage.removeItem('pkbm_fb_rt');
+    localStorage.removeItem('pkbm_settings');
+    localStorage.removeItem('pkbm_cert');
     showToast('Data direset. Memuat ulang...', 'err');
     setTimeout(function() { location.reload(); }, 1500);
   }).catch(function(e) { showToast('Error: ' + e.message, 'err'); });

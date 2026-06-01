@@ -415,6 +415,7 @@ var fbToken = null;
 var fbRefresh = null;
 var fbTokenExpiry = 0;
 var lastDbHash = '';
+var lastSettingsHash = '';
 var syncTimer = null;
 var isSyncing = false;
 
@@ -493,6 +494,16 @@ function fbWrite(data) {
     body: JSON.stringify(data)
   });
 }
+// Settings stored separately to avoid large payload issues
+function readSettings()  { return fbRequest('/pkbm_settings.json'); }
+function writeSettings(s) {
+  return fbRequest('/pkbm_settings.json', {
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(s)
+  });
+}
+function deleteSettings() { return fbRequest('/pkbm_settings.json', {method:'DELETE'}); }
 
 // ── Sync status UI ──
 function setSyncStatus(status) {
@@ -536,22 +547,31 @@ function doSync() {
   if (isSyncing) return;
   isSyncing = true;
   setSyncStatus('syncing');
-  fbRead().then(function(data) {
-    isSyncing = false;
-    var changed = applyServerData(data);
-    setSyncStatus('synced');
-    // Always re-apply platform settings (logo, theme, name) on every sync
-    if (data && data.platformSettings && Object.keys(data.platformSettings).length) {
-      applyPlatformSettings(data.platformSettings);
-    }
-    if (changed && currentUser) {
-      var skip = ['viewer','quiz','cert-editor','settings','account'];
-      if (skip.indexOf(currentPage) === -1) refreshPage();
-    }
-  }).catch(function() {
-    isSyncing = false;
-    setSyncStatus('synced');
-  });
+  Promise.all([fbRead(), readSettings()])
+    .then(function(results) {
+      isSyncing = false;
+      var data     = results[0];
+      var settings = results[1];
+      var changed = applyServerData(data);
+      setSyncStatus('synced');
+      // Check if settings changed and apply
+      if (settings && typeof settings === 'object') {
+        var sh = JSON.stringify(settings);
+        if (sh !== lastSettingsHash) {
+          lastSettingsHash = sh;
+          db.platformSettings = settings;
+          applyPlatformSettings(settings);
+        }
+      }
+      if (changed && currentUser) {
+        var skip = ['viewer','quiz','cert-editor','settings','account'];
+        if (skip.indexOf(currentPage) === -1) refreshPage();
+      }
+    })
+    .catch(function() {
+      isSyncing = false;
+      setSyncStatus('synced');
+    });
 }
 
 function startPolling() {
@@ -569,17 +589,25 @@ function initFirebase() {
   fbGetToken()
     .then(function() {
       if (st) st.textContent = 'Mengambil data...';
-      return fbRead();
+      return Promise.all([fbRead(), readSettings()]);
     })
-    .then(function(data) {
+    .then(function(results) {
+      var data     = results[0];
+      var settings = results[1];
       if (data && data.courses) {
         applyServerData(data);
       } else {
         if (st) st.textContent = 'Menyiapkan data awal...';
-        return fbWrite({courses:db.courses,lessons:db.lessons,quizzes:db.quizzes,users:db.users})
-          .then(function() {
-            lastDbHash = JSON.stringify({courses:db.courses,lessons:db.lessons,quizzes:db.quizzes,users:db.users});
-          });
+        var initPayload = {courses:db.courses,lessons:db.lessons,quizzes:db.quizzes,users:db.users,notifications:[],announcements:[]};
+        return fbWrite(initPayload).then(function() {
+          lastDbHash = JSON.stringify(initPayload);
+        });
+      }
+      // Apply platform settings from separate node
+      if (settings && typeof settings === 'object' && settings.name) {
+        db.platformSettings = settings;
+        lastSettingsHash = JSON.stringify(settings);
+        applyPlatformSettings(settings);
       }
     })
     .then(function() {
@@ -619,8 +647,8 @@ function saveDB() {
     courses:db.courses, lessons:db.lessons,
     quizzes:db.quizzes, users:db.users,
     notifications:db.notifications||[],
-    announcements:db.announcements||[],
-    platformSettings:db.platformSettings||{}
+    announcements:db.announcements||[]
+    // platformSettings saved separately via writeSettings()
   };
   fbWrite(payload)
     .then(function() { lastDbHash = JSON.stringify(payload); setSyncStatus('ok'); })
@@ -2014,22 +2042,106 @@ function deleteUser(id) {
 
 // ===== SETTINGS (admin) =====
 function renderSettings() {
-  var s = getSettings();
-  document.getElementById('settingsContent').innerHTML = '<div style="max-width:640px"><div class="card" style="margin-bottom:16px"><div style="font-weight:700;font-size:14px;margin-bottom:3px">Identitas Platform</div><div style="font-size:11.5px;color:var(--gray500);margin-bottom:15px">Nama, logo, dan tagline PKBM</div><div class="fg"><label class="fl">Logo</label><div style="display:flex;gap:13px;align-items:flex-start;flex-wrap:wrap"><div id="lgPrev" style="width:66px;height:66px;border-radius:12px;background:var(--navy);display:flex;align-items:center;justify-content:center;font-size:28px;overflow:hidden;border:2px solid var(--gray200);flex-shrink:0">' + (s.logoImage?'<img src="'+s.logoImage+'" style="width:100%;height:100%;object-fit:cover">':s.emoji||'🎓') + '</div><div style="flex:1;min-width:170px"><div style="display:flex;gap:3px;background:var(--gray100);padding:3px;border-radius:7px;margin-bottom:9px;width:fit-content"><button class="tab ' + (!s.logoImage?'active':'') + '" id="lgTabEmoji" onclick="switchLgTab(\'emoji\')" style="padding:5px 12px;font-size:12px">Emoji</button><button class="tab ' + (s.logoImage?'active':'') + '" id="lgTabImg" onclick="switchLgTab(\'image\')" style="padding:5px 12px;font-size:12px">Gambar</button></div><div id="lgEmojiSec" style="display:' + (!s.logoImage?'block':'none') + '"><input class="fi" id="setEmoji" value="' + (s.emoji||'🎓') + '" style="font-size:18px" oninput="var b=document.getElementById(\'lgPrev\');if(b&&this.value)b.textContent=this.value"></div><div id="lgImgSec" style="display:' + (s.logoImage?'block':'none') + '"><div onclick="document.getElementById(\'lgFile\').click()" style="border:2px dashed var(--gray200);border-radius:7px;padding:13px;text-align:center;cursor:pointer"><div style="font-size:18px;margin-bottom:3px">📁</div><div style="font-size:12px;font-weight:600;color:var(--gray600)">' + (s.logoImage?'Gambar terpasang':'Klik untuk pilih gambar') + '</div><div style="font-size:10.5px;color:var(--gray400)">JPG, PNG. Max 2MB</div></div><input type="file" id="lgFile" accept="image/*" style="display:none" onchange="handleLgUpload(event)"></div></div></div></div><div class="fgrid"><div class="fg"><label class="fl">Nama Platform</label><input class="fi" id="setName" value="' + (s.name||'PKBM Zia Pradista') + '"></div><div class="fg"><label class="fl">Tagline</label><input class="fi" id="setTagline" value="' + (s.tagline||'Platform Belajar Online') + '"></div></div><button class="btn btn-primary btn-sm" onclick="saveIdentity()">Simpan Identitas</button></div><div class="card" style="margin-bottom:16px"><div style="font-weight:700;font-size:14px;margin-bottom:3px">Tema Warna</div><div style="font-size:11.5px;color:var(--gray500);margin-bottom:15px">Warna utama platform</div><div class="fgrid"><div class="fg"><label class="fl">Warna Aksen</label><div style="display:flex;gap:7px;align-items:center"><input type="color" id="setAccent" value="' + (s.accent||'#16a34a') + '" style="width:40px;height:36px;border:1.5px solid var(--gray200);border-radius:7px;cursor:pointer;padding:2px" oninput="document.getElementById(\'setAccentHex\').value=this.value"><input class="fi" id="setAccentHex" value="' + (s.accent||'#16a34a') + '" style="flex:1" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById(\'setAccent\').value=this.value"></div></div><div class="fg"><label class="fl">Warna Sidebar</label><div style="display:flex;gap:7px;align-items:center"><input type="color" id="setNavy" value="' + (s.navy||'#1a3a5c') + '" style="width:40px;height:36px;border:1.5px solid var(--gray200);border-radius:7px;cursor:pointer;padding:2px" oninput="document.getElementById(\'setNavyHex\').value=this.value"><input class="fi" id="setNavyHex" value="' + (s.navy||'#1a3a5c') + '" style="flex:1" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById(\'setNavy\').value=this.value"></div></div></div><div style="margin-bottom:13px"><div style="font-size:12px;font-weight:600;margin-bottom:7px">Tema Cepat:</div><div style="display:flex;gap:6px;flex-wrap:wrap">' + [['#16a34a','#1a3a5c'],['#3b82f6','#0f172a'],['#f59e0b','#1a2a3a'],['#8b5cf6','#2e1065'],['#ef4444','#450a0a'],['#ec4899','#500724'],['#14b8a6','#042f2e']].map(function(pair){return '<div onclick="document.getElementById(\'setAccent\').value=\''+pair[0]+'\';document.getElementById(\'setAccentHex\').value=\''+pair[0]+'\';document.getElementById(\'setNavy\').value=\''+pair[1]+'\';document.getElementById(\'setNavyHex\').value=\''+pair[1]+'\'" class="swatch" style="background:linear-gradient(135deg,'+pair[0]+' 50%,'+pair[1]+' 50%)"></div>';}).join('') + '</div></div><button class="btn btn-primary btn-sm" onclick="saveTheme()">Terapkan Warna</button></div><div class="card" style="border:1.5px solid rgba(239,68,68,.25)"><div style="font-weight:700;font-size:14px;color:var(--red);margin-bottom:3px">Reset Data Platform</div><div style="font-size:11.5px;color:var(--gray500);margin-bottom:11px">Hapus semua data dan kembali ke kondisi awal</div><button class="btn btn-red btn-sm" onclick="doReset()">Reset Semua Data</button></div></div>';
-  logoTab = s.logoImage ? 'image' : 'emoji';
+  var s = db.platformSettings || {};
+  var hasUrl = !!s.logoUrl;
+  var hasImg = !!s.logoImage && !hasUrl;
+  var tabEmoji = !hasUrl && !hasImg ? 'active' : '';
+  var tabUrl   = hasUrl ? 'active' : '';
+  var tabImg   = hasImg ? 'active' : '';
+  var prevHtml = hasUrl ? '<img src="' + s.logoUrl + '" style="width:100%;height:100%;object-fit:cover">'
+               : hasImg ? '<img src="' + s.logoImage + '" style="width:100%;height:100%;object-fit:cover">'
+               : (s.emoji || '🎓');
+  var imgStatus = hasImg ? 'Gambar terpasang ✓' : 'Klik untuk pilih gambar';
+
+  var html = '<div style="max-width:640px">'
+    + '<div class="card" style="margin-bottom:16px">'
+    + '<div style="font-weight:700;font-size:14px;margin-bottom:3px">Identitas Platform</div>'
+    + '<div style="font-size:11.5px;color:var(--gray500);margin-bottom:15px">Nama, logo, dan tagline PKBM</div>'
+
+    // Logo preview + tabs
+    + '<div class="fg"><label class="fl">Logo Platform</label>'
+    + '<div style="display:flex;gap:13px;align-items:flex-start;flex-wrap:wrap">'
+    + '<div id="lgPrev" style="width:66px;height:66px;border-radius:12px;background:var(--navy);display:flex;align-items:center;justify-content:center;font-size:28px;overflow:hidden;border:2px solid var(--gray200);flex-shrink:0">' + prevHtml + '</div>'
+    + '<div style="flex:1;min-width:170px">'
+    // Tabs
+    + '<div style="display:flex;gap:3px;background:var(--gray100);padding:3px;border-radius:8px;margin-bottom:9px;width:fit-content">'
+    + '<button class="tab ' + tabEmoji + '" id="lgTabEmoji" onclick="switchLgTab(\'emoji\')" style="padding:5px 10px;font-size:11.5px">&#128522; Emoji</button>'
+    + '<button class="tab ' + tabUrl   + '" id="lgTabUrl"   onclick="switchLgTab(\'url\')"   style="padding:5px 10px;font-size:11.5px">&#128279; URL</button>'
+    + '<button class="tab ' + tabImg   + '" id="lgTabImg"   onclick="switchLgTab(\'image\')" style="padding:5px 10px;font-size:11.5px">&#128193; Upload</button>'
+    + '</div>'
+    // Emoji section
+    + '<div id="lgEmojiSec" style="display:' + (!hasUrl&&!hasImg?'block':'none') + '">'
+    + '<input class="fi" id="setEmoji" value="' + (s.emoji||'&#127891;') + '" style="font-size:18px" oninput="var b=document.getElementById(\'lgPrev\');if(b&&this.value)b.textContent=this.value">'
+    + '</div>'
+    // URL section
+    + '<div id="lgUrlSec" style="display:' + (hasUrl?'block':'none') + '">'
+    + '<input class="fi" id="setLogoUrl" value="' + (s.logoUrl||'') + '" placeholder="https://contoh.com/logo.png" oninput="handleLogoUrlInput(this.value)">'
+    + '<div style="font-size:11px;color:var(--gray400);margin-top:4px">Masukkan URL gambar publik. Cara terbaik - langsung sync ke semua perangkat tanpa batas ukuran!</div>'
+    + '</div>'
+    // Upload section
+    + '<div id="lgImgSec" style="display:' + (hasImg?'block':'none') + '">'
+    + '<div onclick="document.getElementById(\'lgFile\').click()" style="border:2px dashed var(--gray200);border-radius:7px;padding:13px;text-align:center;cursor:pointer">'
+    + '<div style="font-size:18px;margin-bottom:3px">&#128193;</div>'
+    + '<div style="font-size:12px;font-weight:600;color:var(--gray600)">' + imgStatus + '</div>'
+    + '<div style="font-size:10.5px;color:var(--gray400)">JPG, PNG. Maks 2MB</div>'
+    + '</div>'
+    + '<input type="file" id="lgFile" accept="image/*" style="display:none" onchange="handleLgUpload(event)">'
+    + '</div>'
+    + '</div></div></div>'
+
+    // Name & tagline
+    + '<div class="fgrid">'
+    + '<div class="fg"><label class="fl">Nama Platform</label><input class="fi" id="setName" value="' + (s.name||'PKBM Zia Pradista') + '"></div>'
+    + '<div class="fg"><label class="fl">Tagline</label><input class="fi" id="setTagline" value="' + (s.tagline||'Platform Belajar Online') + '"></div>'
+    + '</div>'
+    + '<button class="btn btn-primary btn-sm" onclick="saveIdentity()">&#128190; Simpan Identitas</button>'
+    + '</div>'
+
+    // Theme
+    + '<div class="card" style="margin-bottom:16px">'
+    + '<div style="font-weight:700;font-size:14px;margin-bottom:3px">Tema Warna</div>'
+    + '<div style="font-size:11.5px;color:var(--gray500);margin-bottom:15px">Warna utama platform</div>'
+    + '<div class="fgrid">'
+    + '<div class="fg"><label class="fl">Warna Aksen</label><div style="display:flex;gap:7px;align-items:center"><input type="color" id="setAccent" value="' + (s.accent||'#16a34a') + '" style="width:40px;height:36px;border:1.5px solid var(--gray200);border-radius:7px;cursor:pointer;padding:2px" oninput="document.getElementById(\'setAccentHex\').value=this.value"><input class="fi" id="setAccentHex" value="' + (s.accent||'#16a34a') + '" style="flex:1" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById(\'setAccent\').value=this.value"></div></div>'
+    + '<div class="fg"><label class="fl">Warna Sidebar</label><div style="display:flex;gap:7px;align-items:center"><input type="color" id="setNavy" value="' + (s.navy||'#1a3a5c') + '" style="width:40px;height:36px;border:1.5px solid var(--gray200);border-radius:7px;cursor:pointer;padding:2px" oninput="document.getElementById(\'setNavyHex\').value=this.value"><input class="fi" id="setNavyHex" value="' + (s.navy||'#1a3a5c') + '" style="flex:1" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById(\'setNavy\').value=this.value"></div></div>'
+    + '</div>'
+    + '<div style="margin-bottom:13px"><div style="font-size:12px;font-weight:600;margin-bottom:7px">Tema Cepat:</div><div style="display:flex;gap:6px;flex-wrap:wrap">'
+    + [['#16a34a','#1a3a5c'],['#3b82f6','#0f172a'],['#f59e0b','#1a2a3a'],['#8b5cf6','#2e1065'],['#ef4444','#450a0a'],['#ec4899','#500724'],['#14b8a6','#042f2e']].map(function(p){return '<div onclick="document.getElementById(\'setAccent\').value=\''+p[0]+'\';document.getElementById(\'setAccentHex\').value=\''+p[0]+'\';document.getElementById(\'setNavy\').value=\''+p[1]+'\';document.getElementById(\'setNavyHex\').value=\''+p[1]+'\'" class="swatch" style="background:linear-gradient(135deg,'+p[0]+' 50%,'+p[1]+' 50%)"></div>';}).join('')
+    + '</div></div>'
+    + '<button class="btn btn-primary btn-sm" onclick="saveTheme()">&#127912; Terapkan Warna</button>'
+    + '</div>'
+
+    // Reset
+    + '<div class="card" style="border:1.5px solid rgba(239,68,68,.25)">'
+    + '<div style="font-weight:700;font-size:14px;color:var(--red);margin-bottom:3px">Reset Data Platform</div>'
+    + '<div style="font-size:11.5px;color:var(--gray500);margin-bottom:11px">Hapus semua data dan kembali ke kondisi awal</div>'
+    + '<button class="btn btn-red btn-sm" onclick="doReset()">&#128465; Reset Semua Data</button>'
+    + '</div>'
+    + '</div>';
+
+  document.getElementById('settingsContent').innerHTML = html;
+  logoTab = hasUrl ? 'url' : (hasImg ? 'image' : 'emoji');
   logoImageData = s.logoImage || null;
+}
+
+function handleLogoUrlInput(val) {
+  var prev = document.getElementById('lgPrev');
+  if (!prev) return;
+  if (val && (val.startsWith('http://') || val.startsWith('https://'))) {
+    prev.innerHTML = '<img src="' + val + '" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.textContent=\'&#10060; URL tidak valid\'">';
+  } else {
+    prev.textContent = val || '🎓';
+  }
 }
 
 function switchLgTab(t) {
   logoTab = t;
-  var et = document.getElementById('lgTabEmoji');
-  var it = document.getElementById('lgTabImg');
-  var es = document.getElementById('lgEmojiSec');
-  var is = document.getElementById('lgImgSec');
-  if (et) et.classList.toggle('active', t==='emoji');
-  if (it) it.classList.toggle('active', t==='image');
-  if (es) es.style.display = t==='emoji' ? 'block' : 'none';
-  if (is) is.style.display = t==='image' ? 'block' : 'none';
+  var tabs = ['lgTabEmoji','lgTabUrl','lgTabImg'];
+  var secs = ['lgEmojiSec','lgUrlSec','lgImgSec'];
+  var map = {emoji:0, url:1, image:2};
+  var idx = map[t] !== undefined ? map[t] : 0;
+  tabs.forEach(function(id,i){ var el=document.getElementById(id); if(el) el.classList.toggle('active',i===idx); });
+  secs.forEach(function(id,i){ var el=document.getElementById(id); if(el) el.style.display=i===idx?'block':'none'; });
 }
 
 function handleLgUpload(e) {
@@ -2048,13 +2160,21 @@ function handleLgUpload(e) {
 
 function saveIdentity() {
   var ps = db.platformSettings || {};
-  if (logoTab === 'image' && logoImageData) {
+  var logoUrlEl = document.getElementById('setLogoUrl');
+  var logoUrl = logoUrlEl ? logoUrlEl.value.trim() : '';
+  if (logoUrl && (logoUrl.startsWith('http://') || logoUrl.startsWith('https://'))) {
+    ps.logoUrl = logoUrl;
+    delete ps.logoImage;
+    delete ps.emoji;
+  } else if (logoTab === 'image' && logoImageData) {
     ps.logoImage = logoImageData;
+    delete ps.logoUrl;
     delete ps.emoji;
   } else {
     var emojiEl = document.getElementById('setEmoji');
     ps.emoji = emojiEl ? emojiEl.value : '🎓';
     delete ps.logoImage;
+    delete ps.logoUrl;
     logoImageData = null;
   }
   var nameEl = document.getElementById('setName');
@@ -2062,9 +2182,18 @@ function saveIdentity() {
   ps.name = nameEl ? nameEl.value : 'PKBM Zia Pradista';
   ps.tagline = tagEl ? tagEl.value : 'Platform Belajar Online';
   db.platformSettings = ps;
-  saveDB(); // saves to Firebase, all devices will get updated logo
+  lastSettingsHash = JSON.stringify(ps);
+  setSyncStatus('saving');
+  writeSettings(ps)
+    .then(function() {
+      setSyncStatus('ok');
+      showToast('Identitas disimpan! Semua perangkat terupdate dalam 5 detik.', 'ok');
+    })
+    .catch(function(e) {
+      setSyncStatus('error');
+      showToast('Gagal simpan: ' + e.message, 'err');
+    });
   applyPlatformSettings(ps);
-  showToast('Identitas disimpan! Semua perangkat akan terupdate.', 'ok');
 }
 
 function saveTheme() {
@@ -2074,11 +2203,18 @@ function saveTheme() {
   ps.accent = aEl ? aEl.value : '#16a34a';
   ps.navy = nEl ? nEl.value : '#1a3a5c';
   db.platformSettings = ps;
-  saveDB();
+  lastSettingsHash = JSON.stringify(ps);
+  writeSettings(ps)
+    .then(function() { showToast('Tema diterapkan! Semua perangkat terupdate.', 'ok'); })
+    .catch(function(e) { showToast('Gagal simpan tema: ' + e.message, 'err'); });
   applyPlatformSettings(ps);
-  showToast('Tema diterapkan! Semua perangkat akan terupdate.', 'ok');
 }
 
+function logoImgTag(s, style) {
+  if (s.logoUrl)   return '<img src="' + s.logoUrl + '" style="' + style + '">';
+  if (s.logoImage) return '<img src="' + s.logoImage + '" style="' + style + '">';
+  return s.emoji || '🎓';
+}
 function applyPlatformSettings(s) {
   if (!s) return;
   if (s.accent) {
@@ -2087,21 +2223,18 @@ function applyPlatformSettings(s) {
     document.documentElement.style.setProperty('--accent-dim', s.accent + '20');
   }
   if (s.navy) document.documentElement.style.setProperty('--navy', s.navy);
+  var hasImg = s.logoUrl || s.logoImage;
   var li = document.getElementById('sLogoImg');
-  if (li) {
-    if (s.logoImage) li.innerHTML = '<img src="' + s.logoImage + '" style="width:100%;height:100%;object-fit:cover">';
-    else li.textContent = s.emoji || '🎓';
-  }
+  if (li) li.innerHTML = hasImg ? logoImgTag(s,'width:100%;height:100%;object-fit:cover') : (s.emoji || '🎓');
   if (s.name) { var sn=document.getElementById('sName'); if(sn) sn.textContent=s.name; }
   if (s.tagline) { var st=document.getElementById('sTagline'); if(st) st.textContent=s.tagline; }
   if (s.name) document.title = s.name + ' LMS';
-  if (s.name) { var lln=document.getElementById('loginName'); if(lln) lln.textContent=s.name; }
-  if (s.tagline) { var llt=document.getElementById('loginTagline'); if(llt) llt.textContent=s.tagline; }
+  var lln=document.getElementById('loginName');
+  if (lln && s.name) lln.textContent=s.name;
+  var llt=document.getElementById('loginTagline');
+  if (llt && s.tagline) llt.textContent=s.tagline;
   var llw=document.getElementById('loginLogoWrap');
-  if (llw) {
-    if (s.logoImage) llw.innerHTML='<img src="'+s.logoImage+'" style="width:100%;height:100%;object-fit:cover;border-radius:11px">';
-    else llw.textContent = s.emoji || '🎓';
-  }
+  if (llw) llw.innerHTML = hasImg ? logoImgTag(s,'width:100%;height:100%;object-fit:cover;border-radius:11px') : (s.emoji || '🎓');
 }
 function applySettings() {
   // Apply from Firebase platformSettings (if loaded), fallback to localStorage
@@ -2111,7 +2244,7 @@ function applySettings() {
 
 function doReset() {
   if (!confirm('PERINGATAN!\n\nSemua data di Firebase dan semua perangkat akan dihapus. Lanjutkan?')) return;
-  fbDelete().then(function() {
+  Promise.all([fbDelete(), deleteSettings()]).then(function() {
     localStorage.removeItem('pkbm_fb_rt');
     localStorage.removeItem('pkbm_settings');
     localStorage.removeItem('pkbm_cert');
